@@ -10,5 +10,13 @@
     }
   ],
   "fortress": [],
-  "random": []
+  "random": [
+    {
+      "name": "妈妈",
+      "score": 5,
+      "kills": 0,
+      "diff": 0,
+      "date": 1783220727964
+    }
+  ]
 }
