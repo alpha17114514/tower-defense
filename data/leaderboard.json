@@ -1,6 +1,14 @@
 {
   "experience": [],
-  "besieged": [],
+  "besieged": [
+    {
+      "name": "666",
+      "score": 2,
+      "kills": 0,
+      "diff": 1,
+      "date": 1783219371718
+    }
+  ],
   "fortress": [],
   "random": []
 }
