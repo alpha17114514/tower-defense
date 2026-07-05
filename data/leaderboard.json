@@ -7,17 +7,17 @@
       "kills": 0,
       "diff": 1,
       "date": 1783219371718
+    },
+    {
+      "name": "alpha17",
+      "score": 2,
+      "kills": 59,
+      "diff": 1,
+      "date": 1783226137263
     }
   ],
   "fortress": [],
   "random": [
-    {
-      "name": "alpha17",
-      "score": 9,
-      "kills": 61,
-      "diff": 61,
-      "date": 1783224278869
-    },
     {
       "name": "妈妈",
       "score": 5,
