@@ -1420,42 +1420,21 @@
                 <button onclick="closeSeasonEnd()">🏠 返回菜单</button>
             </div></div></div>`;
         document.getElementById('modalContainer').innerHTML=html; setTimeout(()=>{const inp=document.getElementById('seasonNameInput');if(inp)inp.focus();},100); }
-    window.submitSeasonScore=async function(score,kills,diff){ const nameEl=document.getElementById('seasonNameInput'); const name=nameEl?nameEl.value.trim():'匿名玩家'; if(!name)nameEl.value=''; const finalName=name||'匿名玩家'; document.getElementById('modalContainer').innerHTML='<div class="modal-overlay"><div class="modal" style="text-align:center;"><h3>📡 提交中...</h3><p style="color:#888;">正在上传到云端排行榜</p></div></div>'; const ok=await saveLeaderboardEntry(finalName, parseInt(score), parseInt(kills), parseInt(diff)); document.getElementById('modalContainer').innerHTML=''; closeSeasonEnd(); showLeaderboard(seasonSubMode); };
+    window.submitSeasonScore=function(score,kills,diff){ const nameEl=document.getElementById('seasonNameInput'); const name=nameEl?nameEl.value.trim():'匿名玩家'; if(!name)nameEl.value=''; const finalName=name||'匿名玩家'; saveLeaderboardEntry(finalName, parseInt(score), parseInt(kills), parseInt(diff)); document.getElementById('modalContainer').innerHTML=''; closeSeasonEnd(); showLeaderboard(seasonSubMode); };
     function closeSeasonEnd(){ document.getElementById('modalContainer').innerHTML=''; document.getElementById('seasonHUD').style.display='none'; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     function restartSeasonMode(){ document.getElementById('modalContainer').innerHTML=''; initSeasonMode(); }
-    // 排行榜系统 - 每个模式分开 + 云端同步
-    const CLOUD_LB={owner:'alpha17114514',repo:'tower-defense',path:'data/leaderboard.json',branch:'main',token:['ghp_s5rS64X4','2sQGrMrDTBy7T','2rnRXMagT31uHyC'].join(''),apiUrl:'https://api.github.com/repos/alpha17114514/tower-defense/contents/data/leaderboard.json'};
-    let _cloudLBCache=null, _cloudLBTime=0;
+    // 排行榜系统 - 离线版(纯本地存储)
     function getLeaderboard(mode){ const key=SEASON_LB_KEYS[mode]||'td_lb_experience'; try{ return JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ return []; } }
-    async function fetchWithTimeout(url, opts, ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||8000); try{ const r=await fetch(url, {...(opts||{}), signal:c.signal}); clearTimeout(t); return r; }catch(e){ clearTimeout(t); throw e; } }
-    async function fetchCloudLB(force){ // 15秒内复用缓存,减少API调用
-        if(!force && _cloudLBCache && Date.now()-_cloudLBTime<15000) return _cloudLBCache;
-        // 用GitHub API + 时间戳防缓存
-        try{ const r=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','If-None-Match':''}}, 8000); if(!r.ok)return _cloudLBCache; const d=await r.json(); const parsed=JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))))); _cloudLBCache=parsed; _cloudLBTime=Date.now(); return parsed; }catch(e){ return _cloudLBCache; } }
-    async function pushCloudLB(data){ // 重试5次,处理sha冲突
-        for(let i=0;i<5;i++){ try{ const gr=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json'}}, 8000); if(!gr.ok){ await new Promise(r=>setTimeout(r,500)); continue; } const fd=await gr.json(); const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2)))); const pr=await fetchWithTimeout(CLOUD_LB.apiUrl, {method:'PUT',headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:`📊 更新排行榜 ${Date.now()}`,content,sha:fd.sha,branch:CLOUD_LB.branch})}, 8000); if(pr.ok){ _cloudLBCache=data; _cloudLBTime=Date.now(); return true; } // sha冲突或失败,等待后重试
-            await new Promise(r=>setTimeout(r,1000*(i+1))); }catch(e){ await new Promise(r=>setTimeout(r,1000*(i+1))); } } return false; }
-    async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience'; let lb=getLeaderboard(seasonSubMode);
-        // 修复:只有同名字且成绩更高才覆盖,否则新增
+    function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience'; let lb=getLeaderboard(seasonSubMode);
         let existing=lb.findIndex(e=>e.name===name);
         const entry={name,score,kills,diff,date:Date.now()};
         if(existing>=0){ if(score>lb[existing].score){ lb[existing]=entry; } else { return; } } else { lb.push(entry); }
-        lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,20); localStorage.setItem(key, JSON.stringify(lb));
-        try{ const cloud=await fetchCloudLB(true); const base=cloud||{experience:[],besieged:[],fortress:[],random:[]}; let cl=base[seasonSubMode]||[];
-            let ce=cl.findIndex(e=>e.name===name);
-            if(ce>=0){ if(score>cl[ce].score){ cl[ce]=entry; } else { return; } } else { cl.push(entry); }
-            cl.sort((a,b)=>b.score-a.score); cl=cl.slice(0,20); base[seasonSubMode]=cl; const ok=await pushCloudLB(base); if(ok)localStorage.setItem(key,JSON.stringify(cl)); else localStorage.setItem(key,JSON.stringify(cl)); }catch(e){} }
-    async function showLeaderboard(mode){ if(!mode)mode='experience';
-        const vs=document.getElementById('versionSelect'); const vsVisible=vs&&vs.style.display!=='none'; if(vs)vs.style.display='none';
+        lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,20); localStorage.setItem(key, JSON.stringify(lb)); }
+    function showLeaderboard(mode){ if(!mode)mode='experience';
+        document.getElementById('versionSelect').style.display='none';
         let modeTabs=''; for(const m of ['experience','besieged','fortress','random']){ modeTabs+=`<button class="nav-btn ${m===mode?'active-speed':''}" onclick="showLeaderboard('${m}')" style="font-size:0.75em;">${SEASON_MODE_NAMES[m]}</button>`; }
-        const lbLocal=getLeaderboard(mode); let entriesLocal=''; if(lbLocal.length===0){ entriesLocal='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lbLocal.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entriesLocal+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
-        document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>🏆 赛季排行榜</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">${modeTabs}</div><div style="max-height:350px;overflow-y:auto;" id="lbList"><div style="padding:12px;color:#888;text-align:center;">⏳ 加载云端数据...</div></div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';document.getElementById('versionSelect').style.display='flex';">✖ 关闭返回主界面</button></div></div></div>`;
-        const cloud=await fetchCloudLB();
-        let lb=lbLocal;
-        if(cloud&&cloud[mode]){ lb=cloud[mode]; localStorage.setItem(SEASON_LB_KEYS[mode]||'td_lb_experience',JSON.stringify(lb)); }
-        let entries=''; if(lb.length===0){ entries='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lb.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entries+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
-        const lbList=document.getElementById('lbList'); if(lbList)lbList.innerHTML=entries;
-    }
+        const lb=getLeaderboard(mode); let entries=''; if(lb.length===0){ entries='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lb.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entries+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
+        document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>🏆 本地排行榜</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">${modeTabs}</div><div style="max-height:350px;overflow-y:auto;">${entries}</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';document.getElementById('versionSelect').style.display='flex';">✖ 关闭返回主界面</button></div></div></div>`; }
     // 返回菜单
     function backToMenu(){ seasonActive=false; document.getElementById('seasonHUD').style.display='none'; document.getElementById('modalContainer').innerHTML=''; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     // 公告系统
