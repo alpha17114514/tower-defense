@@ -1437,16 +1437,24 @@
     async function pushCloudLB(data){ // 重试5次,处理sha冲突
         for(let i=0;i<5;i++){ try{ const gr=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json'}}, 8000); if(!gr.ok){ await new Promise(r=>setTimeout(r,500)); continue; } const fd=await gr.json(); const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2)))); const pr=await fetchWithTimeout(CLOUD_LB.apiUrl, {method:'PUT',headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:`📊 更新排行榜 ${Date.now()}`,content,sha:fd.sha,branch:CLOUD_LB.branch})}, 8000); if(pr.ok){ _cloudLBCache=data; _cloudLBTime=Date.now(); return true; } // sha冲突或失败,等待后重试
             await new Promise(r=>setTimeout(r,1000*(i+1))); }catch(e){ await new Promise(r=>setTimeout(r,1000*(i+1))); } } return false; }
-    async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience'; let lb=getLeaderboard(seasonSubMode);
-        // 修复:只有同名字且成绩更高才覆盖,否则新增
-        let existing=lb.findIndex(e=>e.name===name);
+    async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience';
         const entry={name,score,kills,diff,date:Date.now()};
+        // 先更新本地(保留本地数据作为备份)
+        let lb=getLeaderboard(seasonSubMode);
+        let existing=lb.findIndex(e=>e.name===name);
         if(existing>=0){ if(score>lb[existing].score){ lb[existing]=entry; } else { return; } } else { lb.push(entry); }
         lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,20); localStorage.setItem(key, JSON.stringify(lb));
-        try{ const cloud=await fetchCloudLB(true); const base=cloud||{experience:[],besieged:[],fortress:[],random:[]}; let cl=base[seasonSubMode]||[];
+        // 云端提交(失败不影响本地)
+        try{ const cloud=await fetchCloudLB(true); if(!cloud){ console.log('云端数据拉取失败，保持本地数据'); return; }
+            let cl=cloud[seasonSubMode]||[];
+            // 合并本地新数据到云端
             let ce=cl.findIndex(e=>e.name===name);
             if(ce>=0){ if(score>cl[ce].score){ cl[ce]=entry; } else { return; } } else { cl.push(entry); }
-            cl.sort((a,b)=>b.score-a.score); cl=cl.slice(0,20); base[seasonSubMode]=cl; const ok=await pushCloudLB(base); if(ok)localStorage.setItem(key,JSON.stringify(cl)); else localStorage.setItem(key,JSON.stringify(cl)); }catch(e){} }
+            cl.sort((a,b)=>b.score-a.score); cl=cl.slice(0,20); cloud[seasonSubMode]=cl;
+            const ok=await pushCloudLB(cloud);
+            if(ok){ console.log('云端排行榜更新成功'); localStorage.setItem(key,JSON.stringify(cl)); }
+            else{ console.log('云端推送失败，保持本地数据'); }
+        }catch(e){ console.log('云端同步异常，保持本地数据:', e); } }
     async function showLeaderboard(mode){ if(!mode)mode='experience';
         const vs=document.getElementById('versionSelect'); const vsVisible=vs&&vs.style.display!=='none'; if(vs)vs.style.display='none';
         let modeTabs=''; for(const m of ['experience','besieged','fortress','random']){ modeTabs+=`<button class="nav-btn ${m===mode?'active-speed':''}" onclick="showLeaderboard('${m}')" style="font-size:0.75em;">${SEASON_MODE_NAMES[m]}</button>`; }
