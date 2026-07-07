@@ -8,9 +8,10 @@
     :root{--bg:#1a1a2e;--panel-bg:#16213e;--text:#e0e0e0;--gold:#f0c040;--danger:#e04040;--success:#40c040;--accent:#e08020;--nav-height:48px;}
     *{margin:0;padding:0;box-sizing:border-box;}
     body{background:#0d1117;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;min-height:100vh;user-select:none;overflow:hidden;height:100vh;touch-action:none;}
-    /* 主题预设 */
-    .theme-ocean{--bg:#1a2a3e;--panel-bg:#1621ae;--gold:#60c0ff;}
-    .theme-field{--bg:#2a1a1a;--panel-bg:#3e1616;--gold:#c0ff40;}
+    /* CSS主题预设 */
+    .theme-default{--bg:#1a1a2e;--panel-bg:#16213e;--gold:#f0c040;}
+    .theme-ocean{--bg:#d4a76a;--panel-bg:#2c3e50;--gold:#daa520;}
+    .theme-field{--bg:#8b4513;--panel-bg:#355e35;--gold:#ffd700;}
     .navbar{position:sticky;top:0;z-index:100;background:var(--panel-bg);backdrop-filter:blur(12px);border-bottom:1.5px solid #334;height:var(--nav-height);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:6px;flex-shrink:0;flex-wrap:wrap;}
     .navbar-left{display:flex;align-items:center;gap:8px;}
     .navbar-title{font-weight:700;font-size:1.2em;color:var(--gold);letter-spacing:2px;white-space:nowrap;}
@@ -152,12 +153,13 @@
 
 <script>
     const ROWS=20, COLS=30, CELL_SIZE=24; const canvas=document.getElementById('gameCanvas'); canvas.width=COLS*CELL_SIZE; canvas.height=ROWS*CELL_SIZE; const ctx=canvas.getContext('2d');
-    // Canvas渲染主题配色
+    // Canvas渲染主题配色 (沙滩/橙红出入口/浅蓝未挖/青色通道)
     const THEME_COLORS={
-        ocean:{bg:'#1a2a3e',panel:'#1621ae',gold:'#60c0ff',path:'#3a5a7a',undig:'#2a3a4a',base:'#ff6666',entrance:'#66ffaa',tower:'#3a4a6a',obstacle:'#4a5a7a'},
-        field:{bg:'#2a1a1a',panel:'#3e1616',gold:'#c0ff40',path:'#5a4a3a',undig:'#3a2a2a',base:'#ff8888',entrance:'#88ff66',tower:'#4a3a3a',obstacle:'#5a4a4a'}
+        default:{bg:'#1c1c24',panel:'#16213e',gold:'#f0c040',path:'#5c4033',undig:'#1e1e28',base:'#f44336',entrance:'#4caf50',tower:'#2a2a38',obstacle:'#3a3028'},
+        ocean:{bg:'#d4a76a',panel:'#2c3e50',gold:'#daa520',path:'#3c8dbc',undig:'#87ceeb',base:'#ff6b35',entrance:'#ff6b35',tower:'#e8d4a0',obstacle:'#c9b896'},
+        field:{bg:'#8b4513',panel:'#355e35',gold:'#ffd700',path:'#228b22',undig:'#90ee90',base:'#ff8c00',entrance:'#ff8c00',tower:'#d2b48c',obstacle:'#daa520'}
     };
-    let currentTheme='ocean';
+    let currentTheme='default';
     let TC=THEME_COLORS[currentTheme]; // 当前主题配色引用
     const START_ROW=10, START_COL=0, END_ROW=10, END_COL=COLS-1; const MAX_LEVEL=200, MAX_POINTS=100000, MAX_CRYSTALS=3000;
     let gamePhase='digging', gameSpeed=1, baseHP=100, maxBaseHP=100, points=20, crystals=0, waveNumber=0;
@@ -1474,9 +1476,9 @@
         {version:'v2026.07.05',date:'2026-07-05',title:'🎮 v2026.07.05 更新公告',content:`<h4>🚀 首次上线</h4><ul><li>塔防游戏首次部署到GitHub Pages</li><li>云端排行榜系统上线</li><li>四种赛季模式：经验/四面楚歌/坚不可摧/超级随机</li></ul>`}
     ];
     function showAnnouncements(){ const latest=ANNOUNCEMENTS[0]; let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>📢 游戏公告</h3><div style="margin-bottom:12px;">`; ANNOUNCEMENTS.forEach((a,i)=>{ html+=`<div style="padding:8px;margin:4px 0;border-radius:6px;background:${i===0?'#2a3a50':'#1e1e30'};border-left:3px solid ${i===0?'#f0c040':'#555'};"><div style="font-size:0.8em;color:#888;">${a.date} ${a.version}</div><div style="font-weight:bold;color:${i===0?'#f0c040':'#ddd'};">${a.title}</div><div style="font-size:0.75em;color:#aaa;margin-top:4px;">${a.content}</div></div>`; }); html+=`</div><div style="text-align:center;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
-    function showThemeSelector(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:400px;"><h3>🎨 选择主题</h3><div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">`; const themes=[['ocean','海洋','#1621ae','#60c0ff'],['field','田野','#3e1616','#c0ff40']]; themes.forEach(([id,name,bg,gold])=>{ html+=`<div style="padding:12px 24px;border-radius:10px;background:${bg};border:3px solid ${currentTheme===id?gold:'#555'};cursor:pointer;color:#fff;font-weight:bold;" onclick="setTheme('${id}')">${name}</div>`; }); html+=`</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
+    function showThemeSelector(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>🎨 选择主题</h3><div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">`; const themes=[['default','原版','#16213e','#f0c040'],['ocean','海洋','#2c3e50','#87ceeb'],['field','田野','#355e35','#ffd700']]; themes.forEach(([id,name,navColor,accent])=>{ const selected=currentTheme===id; html+=`<div style="padding:16px 28px;border-radius:12px;background:${navColor};border:3px solid ${selected?accent:'#555'};cursor:pointer;color:#fff;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'" onclick="setTheme('${id}')">${name}</div>`; }); html+=`</div><div style="text-align:center;margin-top:16px;color:#888;font-size:0.75em;">海洋:沙滩背景·浅蓝未挖·青色通道·橙红出入口<br>田野:棕土背景·浅绿未挖·绿色通道·橙黄出入口</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
     function setTheme(themeId){ currentTheme=themeId; TC=THEME_COLORS[themeId]; document.body.className='theme-'+themeId; localStorage.setItem('td_theme',themeId); document.getElementById('modalContainer').innerHTML=''; }
-    function loadTheme(){ const saved=localStorage.getItem('td_theme')||'ocean'; currentTheme=saved; TC=THEME_COLORS[saved]; document.body.className='theme-'+saved; }
+    function loadTheme(){ const saved=localStorage.getItem('td_theme')||'default'; currentTheme=saved; TC=THEME_COLORS[saved]; document.body.className='theme-'+saved; }
     window.startNormalMode=startNormalMode; window.showSeasonModes=showSeasonModes; window.startSeasonMode=startSeasonMode; window.showLeaderboard=showLeaderboard; window.endSeasonMode=endSeasonMode; window.closeSeasonEnd=closeSeasonEnd; window.backToMenu=backToMenu; window.restartSeasonMode=restartSeasonMode; window.removeTower=removeTower; window.sacrificeAndRefund=sacrificeAndRefund; window.startMoveTower=startMoveTower; window.cancelMoveTower=cancelMoveTower; window.placeMovedTower=placeMovedTower; window.startFortressDefense=startFortressDefense; window.showBarracksSelectMenu=showBarracksSelectMenu; window.setBarracksUnit=setBarracksUnit; window.openEncyclopedia=openEncyclopedia; window.openInstructions=openInstructions; window.showEncyclopediaDetail=showEncyclopediaDetail; window.showEnemyDetail=showEnemyDetail; window.showObstacleDetail=showObstacleDetail; window.showAllyDetail=showAllyDetail; window.showBoxDetail=showBoxDetail; window.upgradeBaseToughness=upgradeBaseToughness; window.upgradeBaseGold=upgradeBaseGold; window.buyBaseTotem=buyBaseTotem; window.showAnnouncements=showAnnouncements; window.showThemeSelector=showThemeSelector; window.setTheme=setTheme;
     loadTheme();
     // 首次打开显示最新公告
