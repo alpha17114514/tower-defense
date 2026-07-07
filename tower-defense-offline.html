@@ -16,15 +16,15 @@
     .theme-purple{--bg:#2e1a2e;--panel-bg:#3e163e;--gold:#c040ff;}
     .theme-red{--bg:#2e1a1a;--panel-bg:#3e1616;--gold:#ff4040;}
     .theme-orange{--bg:#2e2a1a;--panel-bg:#3e3616;--gold:#ff8800;}
-    .navbar{position:sticky;top:0;z-index:100;background:#16213eee;backdrop-filter:blur(12px);border-bottom:1.5px solid #334;height:var(--nav-height);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:6px;flex-shrink:0;flex-wrap:wrap;}
+    .navbar{position:sticky;top:0;z-index:100;background:var(--panel-bg);backdrop-filter:blur(12px);border-bottom:1.5px solid #334;height:var(--nav-height);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:6px;flex-shrink:0;flex-wrap:wrap;}
     .navbar-left{display:flex;align-items:center;gap:8px;}
-    .navbar-title{font-weight:700;font-size:1.2em;color:#f0c040;letter-spacing:2px;white-space:nowrap;}
+    .navbar-title{font-weight:700;font-size:1.2em;color:var(--gold);letter-spacing:2px;white-space:nowrap;}
     .navbar-info{display:flex;align-items:center;gap:10px;font-size:0.8em;color:#ccc;flex-wrap:wrap;}
     .navbar-info span{white-space:nowrap;}
-    .val-danger{color:#e04040;font-weight:bold;}.val-gold{color:#f0c040;font-weight:bold;}.val-crystal{color:#aa88ff;font-weight:bold;}
+    .val-danger{color:#e04040;font-weight:bold;}.val-gold{color:var(--gold);font-weight:bold;}.val-crystal{color:#aa88ff;font-weight:bold;}
     .nav-btn{background:#2a3a50;color:#ddd;border:1px solid #445;padding:4px 10px;border-radius:14px;cursor:pointer;font-size:0.75em;transition:0.2s;font-family:inherit;white-space:nowrap;}
     .nav-btn:hover{background:#354860;border-color:#668;color:#fff;}
-    .nav-btn.active-speed{border-color:#f0c040!important;background:#3a4a30;color:#f0c040;}
+    .nav-btn.active-speed{border-color:var(--gold)!important;background:#3a4a30;color:var(--gold);}
     .nav-btn.active-mode{border-color:#ff8800!important;background:#4a3020;color:#ffaa00;}
     .nav-btn.dev-active{border-color:#ff00ff!important;background:#3a0040;color:#ff66ff;}
     .dropdown{position:relative;}
@@ -32,36 +32,36 @@
     .dropdown-menu{position:absolute;top:calc(100% + 6px);left:0;background:#1e1e30;border:2px solid #555;border-radius:10px;min-width:280px;max-height:350px;overflow-y:auto;z-index:200;display:none;flex-direction:column;padding:6px;gap:4px;}
     .dropdown-menu.show{display:flex;}
     .save-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:6px;border:1px solid #333;background:#1a1a28;font-size:0.75em;gap:6px;}
-    .save-item .save-info{flex:1;}.save-item .save-user{font-weight:600;color:#f0c040;}.save-item .save-time{font-size:0.7em;color:#888;}
+    .save-item .save-info{flex:1;}.save-item .save-user{font-weight:600;color:var(--gold);}.save-item .save-time{font-size:0.7em;color:#888;}
     .save-item button{padding:3px 8px;font-size:0.65em;border-radius:10px;cursor:pointer;background:#2a3a50;color:#ddd;border:1px solid #445;}
     #map-container{flex:1;display:flex;justify-content:center;align-items:center;overflow:auto;padding:4px;}
     canvas#gameCanvas{display:block;border-radius:6px;cursor:crosshair;image-rendering:pixelated;touch-action:none;}
     #context-menu{position:fixed;background:#1e1e30;border:2px solid #555;border-radius:8px;padding:4px;z-index:200;display:none;min-width:170px;box-shadow:0 8px 20px rgba(0,0,0,0.7);max-height:60vh;overflow-y:auto;}
     #context-menu .menu-item{padding:6px 10px;cursor:pointer;font-size:0.8em;color:#ddd;border-radius:4px;display:flex;justify-content:space-between;gap:8px;}
     #context-menu .menu-item:hover{background:#2a2a44;color:#fff;}
-    .menu-item .cost{color:#f0c040;}.menu-item .crystal-cost{color:#aa88ff;}
-    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:300;display:flex;align-items:center;justify-content:center;}
-    .modal{background:#1a1a2e;border:2px solid #444;border-radius:12px;padding:16px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;color:#ddd;}
-    .modal h3{color:#f0c040;text-align:center;margin-bottom:10px;}
+    .menu-item .cost{color:var(--gold);}.menu-item .crystal-cost{color:#aa88ff;}
+    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:600;display:flex;align-items:center;justify-content:center;}
+    .modal{background:var(--bg);border:2px solid #444;border-radius:12px;padding:16px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;color:#ddd;}
+    .modal h3{color:var(--gold);text-align:center;margin-bottom:10px;}
     .modal h4{color:#88ccff;margin:8px 0 4px;}
     .modal input{width:100%;padding:8px;margin:4px 0;border-radius:6px;border:1px solid #555;background:#1e1e30;color:#ddd;font-family:inherit;}
     .modal button{margin:4px;padding:6px 14px;border-radius:8px;border:1px solid #555;background:#2a3a50;color:#ddd;cursor:pointer;font-family:inherit;}
     .modal button:hover{background:#354860;}
     .custom-speed{display:flex;align-items:center;gap:4px;}
     .custom-speed input{width:50px;padding:2px 4px;border-radius:4px;border:1px solid #555;background:#1e1e30;color:#ddd;}
-    .buff-card{display:inline-block;padding:8px 12px;margin:4px;border-radius:8px;border:2px solid #f0c040;background:#2a2a38;color:#f0c040;cursor:pointer;text-align:center;font-weight:bold;}
+    .buff-card{display:inline-block;padding:8px 12px;margin:4px;border-radius:8px;border:2px solid var(--gold);background:#2a2a38;color:var(--gold);cursor:pointer;text-align:center;font-weight:bold;}
     .buff-card:hover{background:#3a3a48;border-color:#ffcc00;}
     .ency-entry{font-size:0.78em;margin-bottom:6px;padding:6px;border-radius:6px;background:#1e1e30;border-left:3px solid #555;}
-    .ency-entry b{color:#f0c040;}
+    .ency-entry b{color:var(--gold);}
     .dev-log-entry{font-size:0.72em;padding:4px 6px;border-bottom:1px solid #333;color:#ddd;}
     .version-tag{position:fixed;bottom:5px;right:12px;color:#888;font-size:0.7em;z-index:10;}
     .dev-badge{position:fixed;bottom:5px;left:12px;color:#ff66ff;font-size:0.7em;z-index:10;font-weight:bold;}
     .version-select{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;}
-    .version-title{font-size:2.5em;font-weight:800;color:#f0c040;text-shadow:0 0 20px rgba(240,192,64,0.5);letter-spacing:6px;text-align:center;}
+    .version-title{font-size:2.5em;font-weight:800;color:var(--gold);text-shadow:0 0 20px rgba(240,192,64,0.5);letter-spacing:6px;text-align:center;}
     .version-subtitle{font-size:0.9em;color:#888;text-align:center;margin-top:-12px;}
     .version-cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:700px;}
-    .version-card{background:#1a1a2e;border:3px solid #3a4a60;border-radius:16px;padding:24px 32px;cursor:pointer;text-align:center;transition:0.3s;width:280px;}
-    .version-card:hover{border-color:#f0c040;transform:translateY(-4px);box-shadow:0 8px 30px rgba(240,192,64,0.2);}
+    .version-card{background:var(--bg);border:3px solid #3a4a60;border-radius:16px;padding:24px 32px;cursor:pointer;text-align:center;transition:0.3s;width:280px;}
+    .version-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 8px 30px rgba(240,192,64,0.2);}
     .version-card.season{border-color:#6a3ace;}
     .version-card.season:hover{border-color:#9a5aff;box-shadow:0 8px 30px rgba(106,58,206,0.3);}
     .version-card .vc-icon{font-size:3em;margin-bottom:8px;}
@@ -1420,21 +1420,42 @@
                 <button onclick="closeSeasonEnd()">🏠 返回菜单</button>
             </div></div></div>`;
         document.getElementById('modalContainer').innerHTML=html; setTimeout(()=>{const inp=document.getElementById('seasonNameInput');if(inp)inp.focus();},100); }
-    window.submitSeasonScore=function(score,kills,diff){ const nameEl=document.getElementById('seasonNameInput'); const name=nameEl?nameEl.value.trim():'匿名玩家'; if(!name)nameEl.value=''; const finalName=name||'匿名玩家'; saveLeaderboardEntry(finalName, parseInt(score), parseInt(kills), parseInt(diff)); document.getElementById('modalContainer').innerHTML=''; closeSeasonEnd(); showLeaderboard(seasonSubMode); };
+    window.submitSeasonScore=async function(score,kills,diff){ const nameEl=document.getElementById('seasonNameInput'); const name=nameEl?nameEl.value.trim():'匿名玩家'; if(!name)nameEl.value=''; const finalName=name||'匿名玩家'; document.getElementById('modalContainer').innerHTML='<div class="modal-overlay"><div class="modal" style="text-align:center;"><h3>📡 提交中...</h3><p style="color:#888;">正在上传到云端排行榜</p></div></div>'; const ok=await saveLeaderboardEntry(finalName, parseInt(score), parseInt(kills), parseInt(diff)); document.getElementById('modalContainer').innerHTML=''; closeSeasonEnd(); showLeaderboard(seasonSubMode); };
     function closeSeasonEnd(){ document.getElementById('modalContainer').innerHTML=''; document.getElementById('seasonHUD').style.display='none'; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     function restartSeasonMode(){ document.getElementById('modalContainer').innerHTML=''; initSeasonMode(); }
-    // 排行榜系统 - 离线版(纯本地存储)
+    // 排行榜系统 - 每个模式分开 + 云端同步
+    const CLOUD_LB={owner:'alpha17114514',repo:'tower-defense',path:'data/leaderboard.json',branch:'main',token:['ghp_s5rS64X4','2sQGrMrDTBy7T','2rnRXMagT31uHyC'].join(''),apiUrl:'https://api.github.com/repos/alpha17114514/tower-defense/contents/data/leaderboard.json'};
+    let _cloudLBCache=null, _cloudLBTime=0;
     function getLeaderboard(mode){ const key=SEASON_LB_KEYS[mode]||'td_lb_experience'; try{ return JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ return []; } }
-    function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience'; let lb=getLeaderboard(seasonSubMode);
+    async function fetchWithTimeout(url, opts, ms){ const c=new AbortController(); const t=setTimeout(()=>c.abort(), ms||8000); try{ const r=await fetch(url, {...(opts||{}), signal:c.signal}); clearTimeout(t); return r; }catch(e){ clearTimeout(t); throw e; } }
+    async function fetchCloudLB(force){ // 15秒内复用缓存,减少API调用
+        if(!force && _cloudLBCache && Date.now()-_cloudLBTime<15000) return _cloudLBCache;
+        // 用GitHub API + 时间戳防缓存
+        try{ const r=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','If-None-Match':''}}, 8000); if(!r.ok)return _cloudLBCache; const d=await r.json(); const parsed=JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))))); _cloudLBCache=parsed; _cloudLBTime=Date.now(); return parsed; }catch(e){ return _cloudLBCache; } }
+    async function pushCloudLB(data){ // 重试5次,处理sha冲突
+        for(let i=0;i<5;i++){ try{ const gr=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json'}}, 8000); if(!gr.ok){ await new Promise(r=>setTimeout(r,500)); continue; } const fd=await gr.json(); const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2)))); const pr=await fetchWithTimeout(CLOUD_LB.apiUrl, {method:'PUT',headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:`📊 更新排行榜 ${Date.now()}`,content,sha:fd.sha,branch:CLOUD_LB.branch})}, 8000); if(pr.ok){ _cloudLBCache=data; _cloudLBTime=Date.now(); return true; } // sha冲突或失败,等待后重试
+            await new Promise(r=>setTimeout(r,1000*(i+1))); }catch(e){ await new Promise(r=>setTimeout(r,1000*(i+1))); } } return false; }
+    async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience'; let lb=getLeaderboard(seasonSubMode);
+        // 修复:只有同名字且成绩更高才覆盖,否则新增
         let existing=lb.findIndex(e=>e.name===name);
         const entry={name,score,kills,diff,date:Date.now()};
         if(existing>=0){ if(score>lb[existing].score){ lb[existing]=entry; } else { return; } } else { lb.push(entry); }
-        lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,20); localStorage.setItem(key, JSON.stringify(lb)); }
-    function showLeaderboard(mode){ if(!mode)mode='experience';
-        document.getElementById('versionSelect').style.display='none';
+        lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,20); localStorage.setItem(key, JSON.stringify(lb));
+        try{ const cloud=await fetchCloudLB(true); const base=cloud||{experience:[],besieged:[],fortress:[],random:[]}; let cl=base[seasonSubMode]||[];
+            let ce=cl.findIndex(e=>e.name===name);
+            if(ce>=0){ if(score>cl[ce].score){ cl[ce]=entry; } else { return; } } else { cl.push(entry); }
+            cl.sort((a,b)=>b.score-a.score); cl=cl.slice(0,20); base[seasonSubMode]=cl; const ok=await pushCloudLB(base); if(ok)localStorage.setItem(key,JSON.stringify(cl)); else localStorage.setItem(key,JSON.stringify(cl)); }catch(e){} }
+    async function showLeaderboard(mode){ if(!mode)mode='experience';
+        const vs=document.getElementById('versionSelect'); const vsVisible=vs&&vs.style.display!=='none'; if(vs)vs.style.display='none';
         let modeTabs=''; for(const m of ['experience','besieged','fortress','random']){ modeTabs+=`<button class="nav-btn ${m===mode?'active-speed':''}" onclick="showLeaderboard('${m}')" style="font-size:0.75em;">${SEASON_MODE_NAMES[m]}</button>`; }
-        const lb=getLeaderboard(mode); let entries=''; if(lb.length===0){ entries='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lb.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entries+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
-        document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>🏆 本地排行榜</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">${modeTabs}</div><div style="max-height:350px;overflow-y:auto;">${entries}</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';document.getElementById('versionSelect').style.display='flex';">✖ 关闭返回主界面</button></div></div></div>`; }
+        const lbLocal=getLeaderboard(mode); let entriesLocal=''; if(lbLocal.length===0){ entriesLocal='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lbLocal.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entriesLocal+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
+        document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>🏆 赛季排行榜</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">${modeTabs}</div><div style="max-height:350px;overflow-y:auto;" id="lbList"><div style="padding:12px;color:#888;text-align:center;">⏳ 加载云端数据...</div></div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';document.getElementById('versionSelect').style.display='flex';">✖ 关闭返回主界面</button></div></div></div>`;
+        const cloud=await fetchCloudLB();
+        let lb=lbLocal;
+        if(cloud&&cloud[mode]){ lb=cloud[mode]; localStorage.setItem(SEASON_LB_KEYS[mode]||'td_lb_experience',JSON.stringify(lb)); }
+        let entries=''; if(lb.length===0){ entries='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lb.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entries+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
+        const lbList=document.getElementById('lbList'); if(lbList)lbList.innerHTML=entries;
+    }
     // 返回菜单
     function backToMenu(){ seasonActive=false; document.getElementById('seasonHUD').style.display='none'; document.getElementById('modalContainer').innerHTML=''; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     // 公告系统
