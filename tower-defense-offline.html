@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, touch-action=none">
   <title>通道塔防</title>
   <style>
-    :root{--bg:#1a1a2e;--panel-bg:#16213e;--text:#e0e0e0;--gold:#f0c040;--danger:#e04040;--success:#40c040;--accent:#e08020;--nav-height:48px;}
+    :root{--bg:#1a1a2e;--panel-bg:#16213e;--text:#e0e0e0;--gold:#f0c040;--danger:#e04040;--success:#40c040;--accent:#e08020;--nav-height:48px;--page-bg:#0d1117;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{background:#0d1117;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;min-height:100vh;user-select:none;overflow:hidden;height:100vh;touch-action:none;}
-    /* 主题预设 */
-    .theme-ocean{--bg:#1a2a3e;--panel-bg:#1621ae;--gold:#60c0ff;}
-    .theme-field{--bg:#2a1a1a;--panel-bg:#3e1616;--gold:#c0ff40;}
+    body{background:var(--page-bg);font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;min-height:100vh;user-select:none;overflow:hidden;height:100vh;touch-action:none;}
+    /* CSS主题预设 - 页面大背景 vs 弹窗背景分开 */
+    .theme-default{--bg:#1a1a2e;--panel-bg:#16213e;--gold:#f0c040;--page-bg:#0d1117;}
+    .theme-ocean{--bg:#1e3a5a;--panel-bg:#2c3e50;--gold:#daa520;--page-bg:#FFEBCD;}
+    .theme-field{--bg:#2a3a2a;--panel-bg:#355e35;--gold:#ffd700;--page-bg:#800000;}
+    .theme-mono{--bg:#2a2a2a;--panel-bg:#3a3a3a;--gold:#888888;--page-bg:#1a1a1a;}
     .navbar{position:sticky;top:0;z-index:100;background:var(--panel-bg);backdrop-filter:blur(12px);border-bottom:1.5px solid #334;height:var(--nav-height);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:6px;flex-shrink:0;flex-wrap:wrap;}
     .navbar-left{display:flex;align-items:center;gap:8px;}
     .navbar-title{font-weight:700;font-size:1.2em;color:var(--gold);letter-spacing:2px;white-space:nowrap;}
@@ -154,10 +156,12 @@
     const ROWS=20, COLS=30, CELL_SIZE=24; const canvas=document.getElementById('gameCanvas'); canvas.width=COLS*CELL_SIZE; canvas.height=ROWS*CELL_SIZE; const ctx=canvas.getContext('2d');
     // Canvas渲染主题配色
     const THEME_COLORS={
-        ocean:{bg:'#1a2a3e',panel:'#1621ae',gold:'#60c0ff',path:'#3a5a7a',undig:'#2a3a4a',base:'#ff6666',entrance:'#66ffaa',tower:'#3a4a6a',obstacle:'#4a5a7a'},
-        field:{bg:'#2a1a1a',panel:'#3e1616',gold:'#c0ff40',path:'#5a4a3a',undig:'#3a2a2a',base:'#ff8888',entrance:'#88ff66',tower:'#4a3a3a',obstacle:'#5a4a4a'}
+        default:{bg:'#1c1c24',panel:'#16213e',gold:'#f0c040',path:'#5c4033',undig:'#1e1e28',base:'#f44336',entrance:'#4caf50',tower:'#2a2a38',obstacle:'#3a3028'},
+        ocean:{bg:'#87CEFA',panel:'#2c3e50',gold:'#daa520',path:'#00BFFF',undig1:'#00FFFF',undig2:'#E1FFFF',base:'#ff6b35',entrance:'#ff6b35',tower:'#e8d4a0',obstacle:'#c9b896'},
+        field:{bg:'#4a8c4a',panel:'#355e35',gold:'#ffd700',path:'#32CD32',undig:'#228B22',base:'#ff8c00',entrance:'#ff8c00',tower:'#d2b48c',obstacle:'#daa520'},
+        mono:{bg:'#333333',panel:'#3a3a3a',gold:'#888888',path:'#555555',undig:'#444444',base:'#cccccc',entrance:'#eeeeee',tower:'#666666',obstacle:'#777777'}
     };
-    let currentTheme='ocean';
+    let currentTheme='default';
     let TC=THEME_COLORS[currentTheme]; // 当前主题配色引用
     const START_ROW=10, START_COL=0, END_ROW=10, END_COL=COLS-1; const MAX_LEVEL=200, MAX_POINTS=100000, MAX_CRYSTALS=3000;
     let gamePhase='digging', gameSpeed=1, baseHP=100, maxBaseHP=100, points=20, crystals=0, waveNumber=0;
@@ -784,7 +788,8 @@
     function render(){
         ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=TC.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
         for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c], x=c*CELL_SIZE, y=r*CELL_SIZE; if(cell.type==='obstacle'){ if(cell.obstacleType==='water'){ const t=Date.now()*0.003; ctx.fillStyle=TC.obstacle; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.save(); ctx.strokeStyle=`rgba(100,180,255,${0.3+0.2*Math.sin(t)})`; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(x+12,y+12,4+3*Math.sin(t),0,Math.PI*2); ctx.stroke(); ctx.strokeStyle=`rgba(150,200,255,${0.2+0.15*Math.sin(t+1)})`; ctx.beginPath(); ctx.arc(x+12,y+12,8+2*Math.sin(t+0.5),0,Math.PI*2); ctx.stroke(); ctx.restore(); ctx.fillStyle='#bbeeff'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('💧',x+12,y+16); } else if(cell.obstacleType==='lava'){ ctx.fillStyle=TC.obstacle; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.save(); ctx.fillStyle=`rgba(255,80,0,${0.2+0.1*Math.sin(Date.now()*0.005)})`; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.restore(); ctx.fillStyle='#ff8844'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('🌋',x+12,y+16); } else { ctx.fillStyle=TC.obstacle; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle='#ddd'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText(OBSTACLE_TYPES[cell.obstacleType]?.icon||'?',x+12,y+16); } if(cell.obstacleOverload>0){ ctx.fillStyle='rgba(255,80,0,0.4)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } // 障碍物血条(仙人掌/拦路石/迷魂草/兵营)
-            if(cell.obstacleMaxHP>0&&cell.obstacleHP<cell.obstacleMaxHP){ const barW=CELL_SIZE-4, barH=3, barX=x+2, barY=y+CELL_SIZE-5; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barW,barH); const hpRatio=cell.obstacleHP/cell.obstacleMaxHP; ctx.fillStyle=hpRatio>0.5?'#44ff44':hpRatio>0.25?'#ffaa00':'#ff4444'; ctx.fillRect(barX,barY,barW*hpRatio,barH); } } else if(cell.type==='tower'){ ctx.fillStyle=TC.tower; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle=cell.overloadTimer>0?'#ff6644':TC.gold; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText(TOWER_TYPES[cell.towerType]?.icon||'?',x+12,y+16); if(cell.stunned>0){ ctx.fillStyle='rgba(255,255,0,0.5)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } if(cell.overloadTimer>0){ ctx.fillStyle='rgba(255,0,0,0.3)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } } else if(cell.isPath){ ctx.fillStyle=TC.path; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } else{ ctx.fillStyle=TC.undig; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } }
+            if(cell.obstacleMaxHP>0&&cell.obstacleHP<cell.obstacleMaxHP){ const barW=CELL_SIZE-4, barH=3, barX=x+2, barY=y+CELL_SIZE-5; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barW,barH); const hpRatio=cell.obstacleHP/cell.obstacleMaxHP; ctx.fillStyle=hpRatio>0.5?'#44ff44':hpRatio>0.25?'#ffaa00':'#ff4444'; ctx.fillRect(barX,barY,barW*hpRatio,barH); } } else if(cell.type==='tower'){ ctx.fillStyle=TC.tower; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle=cell.overloadTimer>0?'#ff6644':TC.gold; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText(TOWER_TYPES[cell.towerType]?.icon||'?',x+12,y+16); if(cell.stunned>0){ ctx.fillStyle='rgba(255,255,0,0.5)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } if(cell.overloadTimer>0){ ctx.fillStyle='rgba(255,0,0,0.3)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } } else if(cell.isPath){ ctx.fillStyle=TC.path; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } else{ // 未挖开格子:海洋主题棋盘格交替颜色
+                if(currentTheme==='ocean'&&TC.undig1&&TC.undig2){ ctx.fillStyle=(r+c)%2===0?TC.undig1:TC.undig2; } else { ctx.fillStyle=TC.undig||'#1e1e28'; } ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } }
         if(gamePhase==='defense'&&selectedCell){ const cell=grid[selectedCell.row][selectedCell.col]; if(cell&&cell.type==='tower'){ drawTowerRange(cell,selectedCell.row,selectedCell.col); const sx=selectedCell.col*CELL_SIZE, sy=selectedCell.row*CELL_SIZE; ctx.strokeStyle=TC.gold; ctx.lineWidth=3; ctx.setLineDash([3,2]); ctx.strokeRect(sx+2,sy+2,CELL_SIZE-4,CELL_SIZE-4); ctx.setLineDash([]); } }
         if(quickUpgradeMode&&selectionStartRow>=0&&selectionEndRow>=0){ const x1=Math.min(selectionStartCol,selectionEndCol)*CELL_SIZE, y1=Math.min(selectionStartRow,selectionEndRow)*CELL_SIZE; const x2=(Math.max(selectionStartCol,selectionEndCol)+1)*CELL_SIZE, y2=(Math.max(selectionStartRow,selectionEndRow)+1)*CELL_SIZE; ctx.save(); ctx.globalAlpha=0.4; ctx.fillStyle='rgba(255,160,40,0.3)'; ctx.fillRect(x1,y1,x2-x1,y2-y1); ctx.strokeStyle='#ff8800'; ctx.lineWidth=3; ctx.setLineDash([5,3]); ctx.strokeRect(x1,y1,x2-x1,y2-y1); ctx.restore(); }
         // 电线网持续连线渲染 - 电元素脉冲效果
@@ -1437,16 +1442,24 @@
     async function pushCloudLB(data){ // 重试5次,处理sha冲突
         for(let i=0;i<5;i++){ try{ const gr=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json'}}, 8000); if(!gr.ok){ await new Promise(r=>setTimeout(r,500)); continue; } const fd=await gr.json(); const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2)))); const pr=await fetchWithTimeout(CLOUD_LB.apiUrl, {method:'PUT',headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:`📊 更新排行榜 ${Date.now()}`,content,sha:fd.sha,branch:CLOUD_LB.branch})}, 8000); if(pr.ok){ _cloudLBCache=data; _cloudLBTime=Date.now(); return true; } // sha冲突或失败,等待后重试
             await new Promise(r=>setTimeout(r,1000*(i+1))); }catch(e){ await new Promise(r=>setTimeout(r,1000*(i+1))); } } return false; }
-    async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience'; let lb=getLeaderboard(seasonSubMode);
-        // 修复:只有同名字且成绩更高才覆盖,否则新增
-        let existing=lb.findIndex(e=>e.name===name);
+    async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience';
         const entry={name,score,kills,diff,date:Date.now()};
+        // 先更新本地(保留本地数据作为备份)
+        let lb=getLeaderboard(seasonSubMode);
+        let existing=lb.findIndex(e=>e.name===name);
         if(existing>=0){ if(score>lb[existing].score){ lb[existing]=entry; } else { return; } } else { lb.push(entry); }
         lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,20); localStorage.setItem(key, JSON.stringify(lb));
-        try{ const cloud=await fetchCloudLB(true); const base=cloud||{experience:[],besieged:[],fortress:[],random:[]}; let cl=base[seasonSubMode]||[];
+        // 云端提交(失败不影响本地)
+        try{ const cloud=await fetchCloudLB(true); if(!cloud){ console.log('云端数据拉取失败，保持本地数据'); return; }
+            let cl=cloud[seasonSubMode]||[];
+            // 合并本地新数据到云端
             let ce=cl.findIndex(e=>e.name===name);
             if(ce>=0){ if(score>cl[ce].score){ cl[ce]=entry; } else { return; } } else { cl.push(entry); }
-            cl.sort((a,b)=>b.score-a.score); cl=cl.slice(0,20); base[seasonSubMode]=cl; const ok=await pushCloudLB(base); if(ok)localStorage.setItem(key,JSON.stringify(cl)); else localStorage.setItem(key,JSON.stringify(cl)); }catch(e){} }
+            cl.sort((a,b)=>b.score-a.score); cl=cl.slice(0,20); cloud[seasonSubMode]=cl;
+            const ok=await pushCloudLB(cloud);
+            if(ok){ console.log('云端排行榜更新成功'); localStorage.setItem(key,JSON.stringify(cl)); }
+            else{ console.log('云端推送失败，保持本地数据'); }
+        }catch(e){ console.log('云端同步异常，保持本地数据:', e); } }
     async function showLeaderboard(mode){ if(!mode)mode='experience';
         const vs=document.getElementById('versionSelect'); const vsVisible=vs&&vs.style.display!=='none'; if(vs)vs.style.display='none';
         let modeTabs=''; for(const m of ['experience','besieged','fortress','random']){ modeTabs+=`<button class="nav-btn ${m===mode?'active-speed':''}" onclick="showLeaderboard('${m}')" style="font-size:0.75em;">${SEASON_MODE_NAMES[m]}</button>`; }
@@ -1466,9 +1479,9 @@
         {version:'v2026.07.05',date:'2026-07-05',title:'🎮 v2026.07.05 更新公告',content:`<h4>🚀 首次上线</h4><ul><li>塔防游戏首次部署到GitHub Pages</li><li>云端排行榜系统上线</li><li>四种赛季模式：经验/四面楚歌/坚不可摧/超级随机</li></ul>`}
     ];
     function showAnnouncements(){ const latest=ANNOUNCEMENTS[0]; let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>📢 游戏公告</h3><div style="margin-bottom:12px;">`; ANNOUNCEMENTS.forEach((a,i)=>{ html+=`<div style="padding:8px;margin:4px 0;border-radius:6px;background:${i===0?'#2a3a50':'#1e1e30'};border-left:3px solid ${i===0?'#f0c040':'#555'};"><div style="font-size:0.8em;color:#888;">${a.date} ${a.version}</div><div style="font-weight:bold;color:${i===0?'#f0c040':'#ddd'};">${a.title}</div><div style="font-size:0.75em;color:#aaa;margin-top:4px;">${a.content}</div></div>`; }); html+=`</div><div style="text-align:center;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
-    function showThemeSelector(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:400px;"><h3>🎨 选择主题</h3><div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">`; const themes=[['ocean','海洋','#1621ae','#60c0ff'],['field','田野','#3e1616','#c0ff40']]; themes.forEach(([id,name,bg,gold])=>{ html+=`<div style="padding:12px 24px;border-radius:10px;background:${bg};border:3px solid ${currentTheme===id?gold:'#555'};cursor:pointer;color:#fff;font-weight:bold;" onclick="setTheme('${id}')">${name}</div>`; }); html+=`</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
+    function showThemeSelector(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>🎨 选择主题</h3><div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">`; const themes=[['default','原版','#16213e','#f0c040'],['ocean','海洋','#2c3e50','#87ceeb'],['field','田野','#355e35','#ffd700'],['mono','单调','#3a3a3a','#888888']]; themes.forEach(([id,name,navColor,accent])=>{ const selected=currentTheme===id; html+=`<div style="padding:16px 28px;border-radius:12px;background:${navColor};border:3px solid ${selected?accent:'#555'};cursor:pointer;color:#fff;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'" onclick="setTheme('${id}')">${name}</div>`; }); html+=`</div><div style="text-align:center;margin-top:16px;color:#888;font-size:0.75em;">原版:深灰背景·棕土路径<br>海洋:沙滩大背景·蓝色Canvas·青色路径·棋盘格未挖开(#00BFFF/#E1FFFF)<br>田野:深红土地(#800000)·绿色Canvas·浅绿挖开(#32CD32)·深绿未挖(#228B22)<br>单调:黑白灰配色</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
     function setTheme(themeId){ currentTheme=themeId; TC=THEME_COLORS[themeId]; document.body.className='theme-'+themeId; localStorage.setItem('td_theme',themeId); document.getElementById('modalContainer').innerHTML=''; }
-    function loadTheme(){ const saved=localStorage.getItem('td_theme')||'ocean'; currentTheme=saved; TC=THEME_COLORS[saved]; document.body.className='theme-'+saved; }
+    function loadTheme(){ const saved=localStorage.getItem('td_theme')||'default'; currentTheme=saved; TC=THEME_COLORS[saved]; document.body.className='theme-'+saved; }
     window.startNormalMode=startNormalMode; window.showSeasonModes=showSeasonModes; window.startSeasonMode=startSeasonMode; window.showLeaderboard=showLeaderboard; window.endSeasonMode=endSeasonMode; window.closeSeasonEnd=closeSeasonEnd; window.backToMenu=backToMenu; window.restartSeasonMode=restartSeasonMode; window.removeTower=removeTower; window.sacrificeAndRefund=sacrificeAndRefund; window.startMoveTower=startMoveTower; window.cancelMoveTower=cancelMoveTower; window.placeMovedTower=placeMovedTower; window.startFortressDefense=startFortressDefense; window.showBarracksSelectMenu=showBarracksSelectMenu; window.setBarracksUnit=setBarracksUnit; window.openEncyclopedia=openEncyclopedia; window.openInstructions=openInstructions; window.showEncyclopediaDetail=showEncyclopediaDetail; window.showEnemyDetail=showEnemyDetail; window.showObstacleDetail=showObstacleDetail; window.showAllyDetail=showAllyDetail; window.showBoxDetail=showBoxDetail; window.upgradeBaseToughness=upgradeBaseToughness; window.upgradeBaseGold=upgradeBaseGold; window.buyBaseTotem=buyBaseTotem; window.showAnnouncements=showAnnouncements; window.showThemeSelector=showThemeSelector; window.setTheme=setTheme;
     loadTheme();
     // 首次打开显示最新公告
