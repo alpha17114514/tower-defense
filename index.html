@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, touch-action=none">
   <title>通道塔防</title>
   <style>
-    :root{--bg:#1a1a2e;--panel-bg:#16213e;--text:#e0e0e0;--gold:#f0c040;--danger:#e04040;--success:#40c040;--accent:#e08020;--nav-height:48px;}
+    :root{--bg:#1a1a2e;--panel-bg:#16213e;--text:#e0e0e0;--gold:#f0c040;--danger:#e04040;--success:#40c040;--accent:#e08020;--nav-height:48px;--page-bg:#0d1117;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{background:#0d1117;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;min-height:100vh;user-select:none;overflow:hidden;height:100vh;touch-action:none;}
-    /* CSS主题预设 */
-    .theme-default{--bg:#1a1a2e;--panel-bg:#16213e;--gold:#f0c040;}
-    .theme-ocean{--bg:#d4a76a;--panel-bg:#2c3e50;--gold:#daa520;}
-    .theme-field{--bg:#8b4513;--panel-bg:#355e35;--gold:#ffd700;}
+    body{background:var(--page-bg);font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;min-height:100vh;user-select:none;overflow:hidden;height:100vh;touch-action:none;}
+    /* CSS主题预设 - 页面大背景也响应主题 */
+    .theme-default{--bg:#1a1a2e;--panel-bg:#16213e;--gold:#f0c040;--page-bg:#0d1117;}
+    .theme-ocean{--bg:#d4a76a;--panel-bg:#2c3e50;--gold:#daa520;--page-bg:#1a3a4a;}
+    .theme-field{--bg:#8b4513;--panel-bg:#355e35;--gold:#ffd700;--page-bg:#1a2a1a;}
     .navbar{position:sticky;top:0;z-index:100;background:var(--panel-bg);backdrop-filter:blur(12px);border-bottom:1.5px solid #334;height:var(--nav-height);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:6px;flex-shrink:0;flex-wrap:wrap;}
     .navbar-left{display:flex;align-items:center;gap:8px;}
     .navbar-title{font-weight:700;font-size:1.2em;color:var(--gold);letter-spacing:2px;white-space:nowrap;}
