@@ -1,5 +1,13 @@
 {
-  "experience": [],
+  "experience": [
+    {
+      "name": "alpha17",
+      "score": 241021,
+      "kills": 3274,
+      "diff": 20,
+      "date": 1783518852936
+    }
+  ],
   "besieged": [
     {
       "name": "666",
