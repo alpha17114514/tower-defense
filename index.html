@@ -106,6 +106,7 @@
   <div class="version-title">🛡️ 通道塔防</div>
   <div class="version-subtitle">选择游戏版本</div>
   <div style="display:flex;gap:8px;justify-content:center;margin:8px 0;flex-wrap:wrap;">
+    <button class="nav-btn" id="loginBtn" onclick="showLoginModal()">🔐 登录</button>
     <button class="nav-btn" onclick="showAnnouncements()">📢 公告</button>
     <button class="nav-btn" onclick="openInstructions()">📖 说明书</button>
     <button class="nav-btn" onclick="showThemeSelector()">🎨 主题</button>
@@ -1417,19 +1418,41 @@
         else if(seasonSubMode==='besieged'){ finalScore=waveNumber; finalDiff=Math.floor(seasonDifficulty); endTitle='四面楚歌结束！'; scoreLabel='坚持波数'; }
         else if(seasonSubMode==='fortress'){ finalScore=waveNumber; finalDiff=Math.floor(points); endTitle='坚不可摧结束！'; scoreLabel='坚持波数'; }
         else { finalScore=Math.floor(seasonScore); finalDiff=Math.floor(seasonDifficulty); endTitle='赛季结束！'; }
+        // 根据登录状态显示不同内容
+        const nameInputHtml = currentUser
+            ? `<div style="font-size:0.9em;color:#888;margin:8px 0;">以 <b style="color:#f0c040;">${currentUser.username}</b> 提交分数</div>`
+            : `<h4>输入你的名称录入排行榜</h4><input type="text" id="seasonNameInput" placeholder="输入名称..." maxlength="16" style="text-align:center;font-size:1.1em;"><div style="font-size:0.7em;color:#888;margin-top:4px;">已注册用户请登录后提交</div>`;
         let html=`<div class="modal-overlay"><div class="modal" style="text-align:center;">
             <h3>🏆 ${endTitle}</h3>
             <div style="font-size:1.2em;color:#f0c040;margin:12px 0;">${scoreLabel}: <b>${finalScore}</b></div>
             <div style="margin:8px 0;color:#ccc;">💀 击杀: ${finalKills} | 📊 ${finalDiff}</div>
-            <h4>输入你的名称录入排行榜</h4>
-            <input type="text" id="seasonNameInput" placeholder="输入名称..." maxlength="16" style="text-align:center;font-size:1.1em;">
+            ${nameInputHtml}
             <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
                 <button onclick="submitSeasonScore('${finalScore}','${finalKills}','${finalDiff}')">✅ 提交分数</button>
                 <button onclick="restartSeasonMode()">🔄 再来一局</button>
                 <button onclick="closeSeasonEnd()">🏠 返回菜单</button>
             </div></div></div>`;
         document.getElementById('modalContainer').innerHTML=html; setTimeout(()=>{const inp=document.getElementById('seasonNameInput');if(inp)inp.focus();},100); }
-    window.submitSeasonScore=async function(score,kills,diff){ const nameEl=document.getElementById('seasonNameInput'); const name=nameEl?nameEl.value.trim():'匿名玩家'; if(!name)nameEl.value=''; const finalName=name||'匿名玩家'; document.getElementById('modalContainer').innerHTML='<div class="modal-overlay"><div class="modal" style="text-align:center;"><h3>📡 提交中...</h3><p style="color:#888;">正在上传到云端排行榜</p></div></div>'; const ok=await saveLeaderboardEntry(finalName, parseInt(score), parseInt(kills), parseInt(diff)); document.getElementById('modalContainer').innerHTML=''; closeSeasonEnd(); showLeaderboard(seasonSubMode); };
+    window.submitSeasonScore=async function(score,kills,diff){
+        // 已登录用户自动使用用户名，游客需要输入且不能使用已注册用户名
+        let finalName='';
+        if(currentUser){
+            finalName=currentUser.username;
+        } else {
+            const nameEl=document.getElementById('seasonNameInput');
+            const name=nameEl?nameEl.value.trim():'';
+            if(!name){ alert('请输入名称'); return; }
+            // 验证用户名（不能使用已注册用户名）
+            const validation=await validateUsername(name);
+            if(!validation.valid){ alert(validation.msg); return; }
+            finalName=name;
+        }
+        document.getElementById('modalContainer').innerHTML='<div class="modal-overlay"><div class="modal" style="text-align:center;"><h3>📡 提交中...</h3><p style="color:#888;">正在上传到云端排行榜</p></div></div>';
+        await saveLeaderboardEntry(finalName, parseInt(score), parseInt(kills), parseInt(diff));
+        document.getElementById('modalContainer').innerHTML='';
+        closeSeasonEnd();
+        showLeaderboard(seasonSubMode);
+    };
     function closeSeasonEnd(){ document.getElementById('modalContainer').innerHTML=''; document.getElementById('seasonHUD').style.display='none'; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     function restartSeasonMode(){ document.getElementById('modalContainer').innerHTML=''; initSeasonMode(); }
     // 排行榜系统 - 每个模式分开 + 云端同步
@@ -1477,6 +1500,7 @@
     function backToMenu(){ seasonActive=false; document.getElementById('seasonHUD').style.display='none'; document.getElementById('modalContainer').innerHTML=''; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     // 公告系统
     const ANNOUNCEMENTS=[
+        {version:'v2026.07.10',date:'2026-07-10',title:'🔐 v2026.07.10 用户系统上线',content:`<h4>🔐 用户系统</h4><ul><li>新增登录/注册功能：主界面点击"登录"按钮</li><li>已注册用户提交排行榜时自动填充用户名</li><li>已注册用户名受保护，游客无法使用</li><li>游客仍可提交排行榜，但需手动输入名称且不能使用已注册用户名</li></ul><h4>📋 数据备份</h4><ul><li>排行榜数据定期备份到 data/leaderboard-backup-*.json</li></ul>`},
         {version:'v2026.07.09',date:'2026-07-09',title:'🍬 v2026.07.09 主题更新',content:`<h4>✨ 新增主题</h4><ul><li>🍬 焦糖星主题(测试版)：夜空蓝背景+焦糖棕Canvas+奶油路径+星光金点缀</li></ul><h4>🎨 主题调整</h4><ul><li>海洋主题：路径颜色调为浅青#E1FFFF，未挖开棋盘格#00BFFF/#00FFFF交替</li><li>田野主题：页面背景改为深红#800000，路径#32CD32，未挖开#228B22</li><li>单调主题：路径与基地颜色交换，路径更亮</li></ul><h4>📋 其他</h4><ul><li>云端排行榜数据备份功能</li><li>修复排行榜提交时数据丢失问题</li></ul>`},
         {version:'v2026.07.06',date:'2026-07-06',title:'🎉 v2026.07.06 更新公告',content:`<h4>🐛 Bug修复</h4><ul><li>修复风暴核心在四面楚歌模式击退敌人返回起点的问题</li><li>修复坚不可摧模式积累怪物时跳过第5波停止事件</li><li>修复关闭排行榜不返回主界面的问题</li><li>修复排行榜覆盖逻辑（现在只有同名字且成绩更高才覆盖）</li></ul><h4>✨ 新功能</h4><ul><li>添加游戏公告系统（打开网页自动弹出最新公告）</li><li>添加预设页面主题颜色（原版/海洋/田野/单调）</li><li>重组主界面：公告/说明书/主题/排行榜按钮集中在主界面</li><li>分离离线版(tower-defense-offline.html)和线上版(index.html)</li></ul>`},
         {version:'v2026.07.05',date:'2026-07-05',title:'🎮 v2026.07.05 更新公告',content:`<h4>🚀 首次上线</h4><ul><li>塔防游戏首次部署到GitHub Pages</li><li>云端排行榜系统上线</li><li>四种赛季模式：经验/四面楚歌/坚不可摧/超级随机</li></ul>`}
@@ -1485,8 +1509,26 @@
     function showThemeSelector(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>🎨 选择主题</h3><div style="display:flex;flex-wrap:wrap;gap:16px;justify-content:center;">`; const themes=[['default','原版','#16213e','#f0c040'],['ocean','海洋','#2c3e50','#87ceeb'],['field','田野','#355e35','#ffd700'],['mono','单调','#3a3a3a','#888888'],['caramel','焦糖星(测试)','#1C1C3A','#FFD700']]; themes.forEach(([id,name,navColor,accent])=>{ const selected=currentTheme===id; html+=`<div style="padding:16px 28px;border-radius:12px;background:${navColor};border:3px solid ${selected?accent:'#555'};cursor:pointer;color:#fff;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'" onclick="setTheme('${id}')">${name}</div>`; }); html+=`</div><div style="text-align:center;margin-top:16px;color:#888;font-size:0.7em;line-height:1.6;">原版:深灰背景·棕土路径<br>海洋:沙滩大背景·蓝色Canvas·青色路径·棋盘格未挖开<br>田野:深红土地·绿色Canvas·浅绿挖开·深绿未挖<br>单调:黑白灰配色<br>焦糖星(测试):夜空蓝背景·焦糖棕Canvas·奶油路径·星光金点缀</div><div style="text-align:center;margin-top:12px;"><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 关闭</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
     function setTheme(themeId){ currentTheme=themeId; TC=THEME_COLORS[themeId]; document.body.className='theme-'+themeId; localStorage.setItem('td_theme',themeId); document.getElementById('modalContainer').innerHTML=''; }
     function loadTheme(){ const saved=localStorage.getItem('td_theme')||'default'; currentTheme=saved; TC=THEME_COLORS[saved]; document.body.className='theme-'+saved; }
-    window.startNormalMode=startNormalMode; window.showSeasonModes=showSeasonModes; window.startSeasonMode=startSeasonMode; window.showLeaderboard=showLeaderboard; window.endSeasonMode=endSeasonMode; window.closeSeasonEnd=closeSeasonEnd; window.backToMenu=backToMenu; window.restartSeasonMode=restartSeasonMode; window.removeTower=removeTower; window.sacrificeAndRefund=sacrificeAndRefund; window.startMoveTower=startMoveTower; window.cancelMoveTower=cancelMoveTower; window.placeMovedTower=placeMovedTower; window.startFortressDefense=startFortressDefense; window.showBarracksSelectMenu=showBarracksSelectMenu; window.setBarracksUnit=setBarracksUnit; window.openEncyclopedia=openEncyclopedia; window.openInstructions=openInstructions; window.showEncyclopediaDetail=showEncyclopediaDetail; window.showEnemyDetail=showEnemyDetail; window.showObstacleDetail=showObstacleDetail; window.showAllyDetail=showAllyDetail; window.showBoxDetail=showBoxDetail; window.upgradeBaseToughness=upgradeBaseToughness; window.upgradeBaseGold=upgradeBaseGold; window.buyBaseTotem=buyBaseTotem; window.showAnnouncements=showAnnouncements; window.showThemeSelector=showThemeSelector; window.setTheme=setTheme;
+    window.startNormalMode=startNormalMode; window.showSeasonModes=showSeasonModes; window.startSeasonMode=startSeasonMode; window.showLeaderboard=showLeaderboard; window.endSeasonMode=endSeasonMode; window.closeSeasonEnd=closeSeasonEnd; window.backToMenu=backToMenu; window.restartSeasonMode=restartSeasonMode; window.removeTower=removeTower; window.sacrificeAndRefund=sacrificeAndRefund; window.startMoveTower=startMoveTower; window.cancelMoveTower=cancelMoveTower; window.placeMovedTower=placeMovedTower; window.startFortressDefense=startFortressDefense; window.showBarracksSelectMenu=showBarracksSelectMenu; window.setBarracksUnit=setBarracksUnit; window.openEncyclopedia=openEncyclopedia; window.openInstructions=openInstructions; window.showEncyclopediaDetail=showEncyclopediaDetail; window.showEnemyDetail=showEnemyDetail; window.showObstacleDetail=showObstacleDetail; window.showAllyDetail=showAllyDetail; window.showBoxDetail=showBoxDetail; window.upgradeBaseToughness=upgradeBaseToughness; window.upgradeBaseGold=upgradeBaseGold; window.buyBaseTotem=buyBaseTotem; window.showAnnouncements=showAnnouncements; window.showThemeSelector=showThemeSelector; window.setTheme=setTheme; window.showLoginModal=showLoginModal; window.showRegisterModal=showRegisterModal; window.logout=logout; window.submitLogin=submitLogin; window.submitRegister=submitRegister;
+    // 用户系统
+    const USER_API={url:'https://api.github.com/repos/alpha17114514/tower-defense/contents/data/users.json',token:['ghp_s5rS64X4','2sQGrMrDTBy7T','2rnRXMagT31uHyC'].join('')};
+    let currentUser=null; // 当前登录用户 {username, token}
+    let registeredUsers=[]; // 已注册用户列表(从云端拉取)
+    function getCurrentUser(){ return currentUser; }
+    function isLoggedIn(){ return currentUser!==null; }
+    async function fetchUsers(){ try{ const r=await fetchWithTimeout(USER_API.url,{headers:{'Authorization':`token ${USER_API.token}`,'Accept':'application/vnd.github.v3+json'}},8000); if(!r.ok)return []; const d=await r.json(); const users=JSON.parse(decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))))); registeredUsers=users.users||[]; return registeredUsers; }catch(e){ return []; } }
+    async function saveUsers(users){ try{ const gr=await fetchWithTimeout(USER_API.url,{headers:{'Authorization':`token ${USER_API.token}`,'Accept':'application/vnd.github.v3+json'}},8000); if(!gr.ok)return false; const fd=await gr.json(); const content=btoa(unescape(encodeURIComponent(JSON.stringify({users},null,2)))); const pr=await fetchWithTimeout(USER_API.url,{method:'PUT',headers:{'Authorization':`token ${USER_API.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:`👤 更新用户数据 ${Date.now()}`,content,sha:fd.sha})},8000); return pr.ok; }catch(e){ return false; } }
+    function showLoginModal(){ const html=`<div class="modal-overlay"><div class="modal"><h3>🔐 登录</h3><div style="padding:12px 0;"><input id="loginUsername" placeholder="用户名" style="width:100%;padding:8px;margin:4px 0;"><input id="loginPassword" type="password" placeholder="密码" style="width:100%;padding:8px;margin:4px 0;"></div><div style="display:flex;gap:8px;justify-content:center;"><button onclick="submitLogin()">✓ 登录</button><button onclick="showRegisterModal()">📝 注册</button><button onclick="document.getElementById('modalContainer').innerHTML='';">✖ 取消</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
+    function showRegisterModal(){ const html=`<div class="modal-overlay"><div class="modal"><h3>📝 注册</h3><div style="padding:12px 0;"><input id="regUsername" placeholder="用户名(2-12字符)" style="width:100%;padding:8px;margin:4px 0;"><input id="regPassword" type="password" placeholder="密码(至少6位)" style="width:100%;padding:8px;margin:4px 0;"><input id="regPassword2" type="password" placeholder="确认密码" style="width:100%;padding:8px;margin:4px 0;"></div><div style="font-size:0.75em;color:#888;padding:4px 0;">注册后用户名将被保护，游客无法使用</div><div style="display:flex;gap:8px;justify-content:center;"><button onclick="submitRegister()">✓ 注册</button><button onclick="showLoginModal()">← 返回登录</button></div></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
+    async function submitLogin(){ const username=document.getElementById('loginUsername').value.trim(); const password=document.getElementById('loginPassword').value; if(!username||!password){ alert('请输入用户名和密码'); return; } document.getElementById('modalContainer').innerHTML='<div class="modal-overlay"><div class="modal" style="text-align:center;"><h3>⏳ 登录中...</h3></div></div>'; await fetchUsers(); const user=registeredUsers.find(u=>u.username===username); if(!user){ alert('用户名不存在'); showLoginModal(); return; } if(user.password!==password){ alert('密码错误'); showLoginModal(); return; } currentUser={username,token:user.token||''}; localStorage.setItem('td_current_user',JSON.stringify(currentUser)); document.getElementById('modalContainer').innerHTML=''; alert(`✅ 登录成功！欢迎 ${username}`); updateLoginButton(); }
+    async function submitRegister(){ const username=document.getElementById('regUsername').value.trim(); const password=document.getElementById('regPassword').value; const password2=document.getElementById('regPassword2').value; if(!username||username.length<2||username.length>12){ alert('用户名需要2-12个字符'); return; } if(!password||password.length<6){ alert('密码至少6位'); return; } if(password!==password2){ alert('两次密码不一致'); return; } document.getElementById('modalContainer').innerHTML='<div class="modal-overlay"><div class="modal" style="text-align:center;"><h3>⏳ 注册中...</h3></div></div>'; await fetchUsers(); if(registeredUsers.some(u=>u.username===username)){ alert('用户名已存在'); showRegisterModal(); return; } const newUser={username,password,token:Date.now().toString(36)+Math.random().toString(36).slice(2),created:Date.now()}; registeredUsers.push(newUser); const ok=await saveUsers(registeredUsers); if(!ok){ alert('注册失败，请稍后重试'); showRegisterModal(); return; } currentUser={username,token:newUser.token}; localStorage.setItem('td_current_user',JSON.stringify(currentUser)); document.getElementById('modalContainer').innerHTML=''; alert(`✅ 注册成功！欢迎 ${username}`); updateLoginButton(); }
+    function logout(){ currentUser=null; localStorage.removeItem('td_current_user'); alert('已登出'); updateLoginButton(); }
+    function updateLoginButton(){ const btn=document.getElementById('loginBtn'); if(!btn)return; if(currentUser){ btn.innerHTML=`👤 ${currentUser.username}`; btn.onclick=()=>{ if(confirm(`已登录: ${currentUser.username}\n是否登出?`))logout(); }; } else { btn.innerHTML='🔐 登录'; btn.onclick=showLoginModal; } }
+    function loadCurrentUser(){ const saved=localStorage.getItem('td_current_user'); if(saved){ try{ currentUser=JSON.parse(saved); }catch(e){ currentUser=null; } } updateLoginButton(); }
+    // 验证用户名是否可用（已注册用户不能被游客使用）
+    async function validateUsername(username){ if(!username)return {valid:false,msg:'请输入用户名'}; await fetchUsers(); const isRegistered=registeredUsers.some(u=>u.username===username); if(isRegistered&&!currentUser){ return {valid:false,msg:'该用户名已被注册，请登录或使用其他名称'}; } if(currentUser&&currentUser.username!==username&&isRegistered){ return {valid:false,msg:'不能使用其他已注册的用户名'}; } return {valid:true}; }
     loadTheme();
+    loadCurrentUser();
     // 首次打开显示最新公告
     if(!localStorage.getItem('td_announcement_seen')||localStorage.getItem('td_announcement_seen')!==ANNOUNCEMENTS[0].version){ localStorage.setItem('td_announcement_seen',ANNOUNCEMENTS[0].version); setTimeout(()=>showAnnouncements(),500); }
     initGrid(); requestAnimationFrame(gameLoop); updateSpeedButtons(); updateUI();
