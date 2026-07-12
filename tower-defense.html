@@ -883,7 +883,7 @@
     canvas.addEventListener('mouseleave',()=>{ mouseDown=false; }); canvas.addEventListener('touchstart',handleDown,{passive:false}); canvas.addEventListener('touchmove',handleMove,{passive:false}); canvas.addEventListener('touchend',handleUp); canvas.addEventListener('touchcancel',handleUp);
     // 修复:click仅处理鼠标(触摸由handleUp处理),避免重复弹菜单
     canvas.addEventListener('click',(e)=>{ if(_pointerIsTouch)return; if(quickUpgradeMode)return; const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left, my=e.clientY-rect.top; mouseCanvasX=mx; mouseCanvasY=my; const col=Math.floor(mx/CELL_SIZE), row=Math.floor(my/CELL_SIZE); if(row<0||row>=ROWS||col<0||col>=COLS)return; closeMenu();
-        if(operationMode==='sacrifice'&&gamePhase==='defense'){ const cell=grid[mouseRow][mouseCol]; if(cell&&cell.type==='tower'){ sacrificeAndRefund(mouseRow,mouseCol); } return; }
+        if(operationMode==='sacrifice'&&gamePhase==='defense'){ const cell=grid[row][col]; if(cell&&cell.type==='tower'){ sacrificeAndRefund(row,col); } return; }
         if(gamePhase==='digging'){ if(row===END_ROW&&col===END_COL){ showBaseMenu(mx,my); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mx,my); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } handleCellClick(row,col,mx,my); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; }
         handleCellClick(row,col,mx,my); });
     function handleCellClick(row,col,mx,my){
