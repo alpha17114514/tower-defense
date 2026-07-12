@@ -202,22 +202,22 @@
     const TOWER_UNLOCK_WAVE = { arrow:0, ice:2, fire:3, tesla:5, cannon:8, nuke:12, repair:4, toxic:6, mine:20, potion:22, storm:25, blackhole:0 };
     const MAX_TOWER_LVL = 20; const ULTIMATE_THRESHOLD = 15;
 
-    // 词条系统（坚不可摧模式）
+    // 词条系统（坚不可摧模式）- 全负面词条
     const AFFIX_POOL=[
-        {id:'atk10',name:'攻击+10%',desc:'所有炮塔攻击力提升10%',effect:()=>{for(const r of grid)for(const c of r)if(c.type==='tower')c.towerAtkLvl=(c.towerAtkLvl||0)+1;}},
-        {id:'cd10',name:'冷却-10%',desc:'所有炮塔冷却缩短10%',effect:()=>{for(const r of grid)for(const c of r)if(c.type==='tower')c.towerCdLvl=(c.towerCdLvl||0)+1;}},
-        {id:'range10',name:'范围+10%',desc:'所有炮塔范围扩大10%',effect:()=>{for(const r of grid)for(const c of r)if(c.type==='tower')c.towerRangeLvl=(c.towerRangeLvl||0)+1;}},
-        {id:'gold20',name:'金币+2000',desc:'立即获得2000金币',effect:()=>{points+=2000;if(points>MAX_POINTS)points=MAX_POINTS;}},
-        {id:'crystal50',name:'水晶+100',desc:'立即获得100水晶',effect:()=>{crystals+=100;if(crystals>MAX_CRYSTALS)crystals=MAX_CRYSTALS;}},
-        {id:'hp50',name:'基地血量+50',desc:'基地最大血量提升50',effect:()=>{baseMaxHP+=50;baseHP=Math.min(baseHP+50,baseMaxHP);}},
-        {id:'goldPerWave',name:'波次金币+50',desc:'每波开始额外获得50金币',effect:()=>{seasonWaveGoldBonus=(seasonWaveGoldBonus||0)+50;}},
-        {id:'slowEnemy',name:'敌人减速5%',desc:'所有敌人速度降低5%',effect:()=>{enemySpeedMult=(enemySpeedMult||1)*0.95;}},
-        {id:'doubleGold',name:'击杀双倍',desc:'击杀敌人有20%概率双倍金币',effect:()=>{doubleGoldChance=(doubleGoldChance||0)+0.2;}},
-        {id:'startGold',name:'初始金币+500',desc:'开局额外500金币（立即生效）',effect:()=>{points+=500;if(points>MAX_POINTS)points=MAX_POINTS;}},
-        {id:'critChance',name:'暴击率+10%',desc:'炮塔有10%概率双倍伤害',effect:()=>{critChance=(critChance||0)+0.1;}},
-        {id:'armorPierce',name:'护甲穿透',desc:'攻击无视30%护甲',effect:()=>{armorPierce=(armorPierce||0)+0.3;}}
+        {id:'atkDown',name:'攻击-10%',desc:'所有炮塔攻击力降低10%',effect:()=>{for(const r of grid)for(const c of r)if(c.type==='tower'){c.towerAtkLvl=(c.towerAtkLvl||0)-1;}}},
+        {id:'cdUp',name:'冷却+15%',desc:'所有炮塔冷却延长15%',effect:()=>{for(const r of grid)for(const c of r)if(c.type==='tower'){c.towerCdLvl=(c.towerCdLvl||0)-1;}}},
+        {id:'rangeDown',name:'范围-15%',desc:'所有炮塔范围缩小15%',effect:()=>{for(const r of grid)for(const c of r)if(c.type==='tower'){c.towerRangeLvl=(c.towerRangeLvl||0)-1;}}},
+        {id:'enemyHp',name:'敌人血量+20%',desc:'所有敌人最大血量提升20%',effect:()=>{enemyHpMult=(enemyHpMult||1)*1.2;}},
+        {id:'enemySpeed',name:'敌人加速10%',desc:'所有敌人速度提升10%',effect:()=>{enemySpeedMult=(enemySpeedMult||1)*1.1;}},
+        {id:'enemyArmor',name:'敌人护甲+5',desc:'所有敌人护甲提升5',effect:()=>{enemyArmorBonus=(enemyArmorBonus||0)+5;}},
+        {id:'goldLoss',name:'金币-1000',desc:'立即损失1000金币',effect:()=>{points=Math.max(0,points-1000);}},
+        {id:'crystalLoss',name:'水晶-50',desc:'立即损失50水晶',effect:()=>{crystals=Math.max(0,crystals-50);}},
+        {id:'baseHpDown',name:'基地血量-30',desc:'基地最大血量降低30',effect:()=>{baseMaxHP=Math.max(50,baseMaxHP-30);baseHP=Math.min(baseHP,baseMaxHP);}},
+        {id:'noHeal',name:'禁用治疗',desc:'本阶段无法治疗基地',effect:()=>{healDisabled=true;}},
+        {id:'bossSpawn',name:'Boss降临',desc:'下一波必定出现Boss',effect:()=>{nextWaveBoss=true;}},
+        {id:'goldPerWave',name:'波次金币-30',desc:'每波开始减少30金币',effect:()=>{seasonWaveGoldBonus=(seasonWaveGoldBonus||0)-30;}}
     ];
-    let selectedAffixes=[]; let seasonWaveGoldBonus=0; let enemySpeedMult=1; let doubleGoldChance=0; let critChance=0; let armorPierce=0;
+    let selectedAffixes=[]; let seasonWaveGoldBonus=0; let enemySpeedMult=1; let enemyHpMult=1; let enemyArmorBonus=0; let healDisabled=false; let nextWaveBoss=false;
     function shuffleArray(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
     function showAffixSelection(){ fortressRefreshCount=2; const available=AFFIX_POOL.filter(a=>!selectedAffixes.some(s=>s.id===a.id)); const pool=shuffleArray([...available]).slice(0,5); renderAffixSelection(pool,[]); }
     function renderAffixSelection(pool,chosen){ const cnt=chosen.length; let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>🎯 选择词条 (${cnt}/2)</h3><p style="color:#888;font-size:0.8em;">选择2个词条，可刷新${fortressRefreshCount}次</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">`; pool.forEach((a,i)=>{ const sel=chosen.includes(i); html+=`<div onclick="toggleAffix(${i})" style="padding:12px 16px;border-radius:8px;background:${sel?'#3a5a3a':'#2a2a3a'};border:2px solid ${sel?'#4a4':'#444'};cursor:pointer;width:140px;text-align:center;"><div style="color:${sel?'#8f8':'#ddd'};font-weight:bold;">${a.name}</div><div style="color:#888;font-size:0.7em;margin-top:4px;">${a.desc}</div></div>`; }); html+=`</div><div style="text-align:center;margin-top:12px;">`; if(cnt===2)html+=`<button onclick="confirmAffixes()">✅ 确认选择</button> `; if(fortressRefreshCount>0)html+=`<button onclick="refreshAffixes()">🔄 刷新 (${fortressRefreshCount}次)</button> `; html+=`</div></div></div>`; document.getElementById('modalContainer').innerHTML=html; window._affixPool=pool; window._affixChosen=chosen; }
@@ -909,8 +909,8 @@
     // 修复:click仅处理鼠标(触摸由handleUp处理),避免重复弹菜单
     canvas.addEventListener('click',(e)=>{ if(_pointerIsTouch)return; if(quickUpgradeMode)return; const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left, my=e.clientY-rect.top; mouseCanvasX=mx; mouseCanvasY=my; const col=Math.floor(mx/CELL_SIZE), row=Math.floor(my/CELL_SIZE); if(row<0||row>=ROWS||col<0||col>=COLS)return; closeMenu();
         if(operationMode==='sacrifice'&&gamePhase==='defense'){
-            // 普通模式(非赛季)需要第5波解锁
-            if(gameMode!=='season'&&waveNumber<5){ alert('献祭功能在第5波解锁'); return; }
+            // 普通模式(非赛季)需要第5波解锁，赛季模式随时可用
+            if(gameMode!=='season'&&waveNumber<5){ alert('普通模式献祭功能在第5波解锁'); return; }
             const cell=grid[row][col]; if(cell&&cell.type==='tower'){ sacrificeAndRefund(row,col); } return; }
         if(gamePhase==='digging'){ if(row===END_ROW&&col===END_COL){ showBaseMenu(mx,my); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mx,my); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } handleCellClick(row,col,mx,my); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; }
         handleCellClick(row,col,mx,my); });
@@ -977,8 +977,8 @@
                 menu.innerHTML+=`<div class="menu-item" onclick="selectWireNetPair(${row},${col});"><span>🔗选择连接点</span></div>`;
                 if(cell.wireNetPair){ menu.innerHTML+=`<div style="padding:4px;font-size:0.7em;color:#88ccff;">已连接:(${cell.wireNetPair[0]},${cell.wireNetPair[1]})</div>`; }
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(gameMode!=='season'&&waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
-                if(gameMode!=='season'&&waveNumber>=10){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; }
+                { const showSacrifice=(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
+                { const showMove=(gameMode==='season')||(waveNumber>=10); if(showMove){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; } }
                 menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-200)+'px'; return;
             }
             // 镜子:特殊菜单(已删除)
@@ -991,7 +991,7 @@
             if(t.isOneShot||t.noUpgrade){
                 menu.innerHTML+=`<div style="padding:6px;color:#f0c040;font-size:0.75em;">${t.icon} ${t.name}</div>`;
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(gameMode!=='season'&&waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
+                { const showSacrifice=(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
                 menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-200)+'px'; return;
             }
             if(t.fields){
@@ -1010,8 +1010,8 @@
                 if(canUpCd) menu.innerHTML+=`<div class="menu-item" onclick="upgradeTowerField(${row},${col},'cd',${cdIsCrystal?0:cdCost});closeMenu()"><span>⏱冷却 -${t.cdPerLvl.toFixed(2)} (${cell.cdLvl}→${cell.cdLvl+1})</span><span class="${cdIsCrystal?'crystal-cost':'cost'}">${cdIsCrystal?'💎'+cdCrystalCost:cdCost+'pt'}</span></div>`;
                 if(canUpRange) menu.innerHTML+=`<div class="menu-item" onclick="upgradeTowerField(${row},${col},'range',${rangeIsCrystal?0:rangeCost});closeMenu()"><span>🔭范围 +${t.rangePerLvl||0} (${cell.rangeLvl}→${cell.rangeLvl+1})</span><span class="${rangeIsCrystal?'crystal-cost':'cost'}">${rangeIsCrystal?'💎'+rangeCrystalCost:rangeCost+'pt'}</span></div>`;
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(gameMode!=='season'&&waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
-                if(gameMode!=='season'&&waveNumber>=10){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; }
+                { const showSacrifice=(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
+                { const showMove=(gameMode==='season')||(waveNumber>=10); if(showMove){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; } }
             } else{
                 const upCost=Math.floor((cell.towerLevel+1)*8+10);
                 const fortressMaxLvl=(gameMode==='season'&&seasonSubMode==='fortress')?((cell.isPath||cell.wasPath)?20:16):MAX_TOWER_LVL;
@@ -1020,8 +1020,8 @@
                     else{ menu.innerHTML+=`<div class="menu-item" onclick="upgradeTowerField(${row},${col},'lvl',${upCost});closeMenu()"><span>⬆升级</span><span class="cost">${upCost}pt</span></div>`; }
                 }
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(gameMode!=='season'&&waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
-                if(gameMode!=='season'&&waveNumber>=10){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; }
+                { const showSacrifice=(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
+                { const showMove=(gameMode==='season')||(waveNumber>=10); if(showMove){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; } }
             }
             if(cell.towerType==='fire'||cell.towerType==='toxic') menu.innerHTML+=`<div class="menu-item" onclick="rotateTowerDirection(${row},${col});closeMenu();"><span>↻旋转方向</span></div>`;
         } else if(cell.type==='obstacle'){
@@ -1455,9 +1455,9 @@
     function endSeasonMode(){ seasonActive=false; gamePhase='ended';
         let finalScore, finalKills=seasonKills, finalDiff, scoreLabel='分数', endTitle;
         if(seasonSubMode==='experience'){ finalScore=Math.floor(seasonScore); finalDiff=Math.floor(seasonDifficulty); endTitle='经验模式结束！'; scoreLabel='最终分数'; }
-        else if(seasonSubMode==='random'){ finalScore=waveNumber; finalDiff=seasonKills; endTitle='超级随机结束！'; scoreLabel='坚持波数'; }
-        else if(seasonSubMode==='besieged'){ finalScore=waveNumber; finalDiff=Math.floor(seasonDifficulty); endTitle='四面楚歌结束！'; scoreLabel='坚持波数'; }
-        else if(seasonSubMode==='fortress'){ finalScore=waveNumber; finalDiff=Math.floor(points); endTitle='坚不可摧结束！'; scoreLabel='坚持波数'; }
+        else if(seasonSubMode==='random'){ finalScore=seasonKills+waveNumber; finalDiff=waveNumber; endTitle='超级随机结束！'; scoreLabel='击杀+波次'; }
+        else if(seasonSubMode==='besieged'){ finalScore=seasonKills+waveNumber; finalDiff=waveNumber; endTitle='四面楚歌结束！'; scoreLabel='击杀+波次'; }
+        else if(seasonSubMode==='fortress'){ finalScore=seasonKills+waveNumber; finalDiff=waveNumber; endTitle='坚不可摧结束！'; scoreLabel='击杀+波次'; }
         else { finalScore=Math.floor(seasonScore); finalDiff=Math.floor(seasonDifficulty); endTitle='赛季结束！'; }
         // 根据登录状态显示不同内容
         const nameInputHtml = currentUser
