@@ -93,7 +93,7 @@
   </style>
 </head>
 <body>
-<div class="version-tag">v9.0 双版本·赛季版</div>
+<div class="version-tag">v10.0 词条重制·新炮塔·Boss加强</div>
 <div class="dev-badge" id="devBadge" style="display:none;">🔐 开发者模式</div>
 <nav class="navbar">
   <div class="navbar-left"><span class="navbar-title">🛡️ 通道塔防</span><div class="dropdown" id="saveDropdown"><button class="dropdown-btn" id="dropdownToggle">💾 存档管理</button><div class="dropdown-menu" id="dropdownMenu"><div style="padding:8px;display:flex;justify-content:space-between;"><span style="color:#f0c040;">📁 我的存档</span><button class="nav-btn" id="btnCreateNewSave">＋ 新存档</button></div><div id="saveListContainer" style="display:flex;flex-direction:column;gap:4px;"></div></div></div></div>
@@ -110,6 +110,7 @@
     <button class="nav-btn" id="loginBtn" onclick="showLoginModal()">🔐 登录</button>
     <button class="nav-btn" onclick="showAnnouncements()">📢 公告</button>
     <button class="nav-btn" onclick="openInstructions()">📖 说明书</button>
+    <button class="nav-btn" onclick="openEncyclopedia()">📖图鉴</button>
     <button class="nav-btn" onclick="showThemeSelector()">🎨 主题</button>
     <button class="nav-btn" onclick="showLeaderboard()">📊 排行榜</button>
     <button class="nav-btn" onclick="showChat()">💬 聊天</button>
@@ -161,16 +162,17 @@
     // Canvas渲染主题配色
     const THEME_COLORS={
         default:{bg:'#1c1c24',panel:'#16213e',gold:'#f0c040',path:'#5c4033',undig:'#1e1e28',base:'#f44336',entrance:'#4caf50',tower:'#2a2a38',obstacle:'#3a3028'},
-        ocean:{bg:'#87CEFA',panel:'#2c3e50',gold:'#daa520',path:'#E1FFFF',undig1:'#00BFFF',undig2:'#00FFFF',base:'#ff6b35',entrance:'#ff6b35',tower:'#e8d4a0',obstacle:'#c9b896',titleColor:'#daa520'},
-        field:{bg:'#4a8c4a',panel:'#355e35',gold:'#ffd700',path:'#32CD32',undig:'#228B22',base:'#ff8c00',entrance:'#ff8c00',tower:'#d2b48c',obstacle:'#daa520',titleColor:'#ffd700'},
-        mono:{bg:'#333333',panel:'#3a3a3a',gold:'#888888',path:'#cccccc',undig:'#444444',base:'#eeeeee',entrance:'#eeeeee',tower:'#666666',obstacle:'#777777',titleColor:'#888888'},
-        caramelDark:{bg:'#744952',panel:'#4E4161',gold:'#676A7B',path:'#EEBEBC',undig:'#3E110E',base:'#F47379',entrance:'#F47379',tower:'#605077',obstacle:'#3E110E',titleColor:'#676A7B'},
+        ocean:{bg:'#87CEFA',panel:'#2c3e50',gold:'#FFD700',path:'#E1FFFF',undig1:'#00BFFF',undig2:'#00FFFF',base:'#ff6b35',entrance:'#ff6b35',tower:'#e8d4a0',obstacle:'#c9b896',titleColor:'#FFD700'},
+        field:{bg:'#4a8c4a',panel:'#355e35',gold:'#FFFF00',path:'#32CD32',undig:'#228B22',base:'#ff8c00',entrance:'#ff8c00',tower:'#d2b48c',obstacle:'#daa520',titleColor:'#FFFF00'},
+        mono:{bg:'#333333',panel:'#3a3a3a',gold:'#cccccc',path:'#cccccc',undig:'#444444',base:'#eeeeee',entrance:'#eeeeee',tower:'#666666',obstacle:'#777777',titleColor:'#cccccc'},
+        caramelDark:{bg:'#744952',panel:'#4E4161',gold:'#FFD700',path:'#EEBEBC',undig:'#3E110E',base:'#F47379',entrance:'#F47379',tower:'#605077',obstacle:'#3E110E',titleColor:'#FFD700'},
         caramelLight:{bg:'#E4B5A3',panel:'#AD7467',gold:'#FFFFFF',path:'#E4C2B6',undig:'#8A5D58',base:'#E0A49C',entrance:'#E0A49C',tower:'#FDF4EF',obstacle:'#8A5D58',titleColor:'#FFFFFF'}
     };
     let currentTheme='default';
     let TC=THEME_COLORS[currentTheme]; // 当前主题配色引用
     const START_ROW=10, START_COL=0, END_ROW=10, END_COL=COLS-1; const MAX_LEVEL=200, MAX_POINTS=100000, MAX_CRYSTALS=3000;
     let gamePhase='digging', gameSpeed=1, baseHP=100, maxBaseHP=100, points=20, crystals=0, waveNumber=0;
+    let screenShake=0; // 全屏震动效果
     let waveActive=false, waveBreakTimer=0, waveBreakDuration=20;
     let seasonWaveTimer=0; // 赛季波次计时(用于判断波次结束)
     let enemies=[], particles=[], projectiles=[], allies=[], grid=[], pathOrder=[], pathCorners=[];
@@ -199,8 +201,58 @@
     let fortressPhase='digging'; // 'digging'=挖通道布阵阶段, 'defense'=防守阶段
     let fortressWaveCounter=0; // 坚不可摧模式波次计数(用于每5波暂停)
     let devMode=false, devDamageLog=[];
-    const TOWER_UNLOCK_WAVE = { arrow:0, ice:2, fire:3, tesla:5, cannon:8, nuke:12, repair:4, toxic:6, mine:20, potion:22, storm:25, blackhole:0 };
+    const TOWER_UNLOCK_WAVE = { arrow:0, ice:2, fire:3, tesla:5, cannon:8, nuke:12, repair:4, toxic:6, mine:20, potion:22, storm:25, blackhole:0, fan:15 };
     const MAX_TOWER_LVL = 20; const ULTIMATE_THRESHOLD = 15;
+
+    // 词条系统（坚不可摧模式）- 全负面词条
+    const AFFIX_POOL=[
+        {id:'speed',name:'💨风驰电掣',desc:'所有敌人速度永久+10%',effect:()=>{bossBuffLevels.speed++;}},
+        {id:'health',name:'❤️生机勃勃',desc:'所有敌人生命值永久+25%',effect:()=>{bossBuffLevels.health++;}},
+        {id:'armor',name:'🛡️铜墙铁壁',desc:'所有敌人护甲永久+3',effect:()=>{bossBuffLevels.armor++;}},
+        {id:'destroy',name:'💥断壁残垣',desc:'随机摧毁1/2炮塔',effect:()=>{destroyRandomTowers(0.5);}},
+        {id:'poor',name:'💰囊中羞涩',desc:'损失当前点数的50%',effect:()=>{if(!devMode){points=Math.floor(points*0.5);updateUI();}}},
+        {id:'stun',name:'⚡天旋地转',desc:'所有炮塔眩晕10秒',effect:()=>{stunAllTowers(10);}},
+        {id:'teleport',name:'🌀兵临城下',desc:'传送5个敌人到基地旁',effect:()=>{teleportEnemiesNearBase(5);}},
+        {id:'baseDmg',name:'🩸生灵涂炭',desc:'基地损失30点生命',effect:()=>{damageBase(30,'词条惩罚');}},
+        {id:'crystal',name:'💎宝石流失',desc:'失去所有水晶',effect:()=>{if(!devMode)crystals=0;}},
+        {id:'downgrade',name:'📉降级打击',desc:'随机10座炮塔降1级',effect:()=>{downgradeRandomTowers(10);}},
+        {id:'burn',name:'🔥基地灼烧',desc:'基地每秒损失5点生命持续256秒',effect:()=>{startBaseBurn(256);}},
+        {id:'double',name:'👾敌潮汹涌',desc:'下一波敌人数量翻倍',effect:()=>{nextWaveDouble=true;}},
+        {id:'mine',name:'⚰️矿场崩塌',desc:'所有水晶矿场被摧毁',effect:()=>{destroyAllMines();}},
+        {id:'goldReduce',name:'💰财政紧缩',desc:'击杀金币收益永久-15%',effect:()=>{globalPenalties.pointReduction++;}},
+        {id:'bossChance',name:'👹Boss连连',desc:'每波额外生成Boss概率+20%(最多100%)',effect:()=>{globalPenalties.extraBossChance=Math.min(1,globalPenalties.extraBossChance+0.2);}},
+        {id:'dmgReduce',name:'🛡️皮糙肉厚',desc:'所有敌人伤害减免+7%(最多70%)',effect:()=>{globalPenalties.damageReduction=Math.min(0.7,globalPenalties.damageReduction+0.07);}},
+        {id:'atkDown',name:'🌀手无缚鸡之力',desc:'所有炮塔攻击降低30%持续15秒',effect:()=>{for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')grid[r][c].atkDebuffTimer=Math.max(grid[r][c].atkDebuffTimer||0,15);}},
+        {id:'treaty',name:'📜南京条约',desc:'每轮结束后都要选择惩罚',effect:()=>{nanjingTreaty=true;}},
+        {id:'fine',name:'🎫罚单',desc:'本轮扣500金币',effect:()=>{if(!devMode){points=Math.max(0,points-500);updateUI();}}},
+        {id:'landlord',name:'👵包租婆',desc:'每轮扣50金币否则扣血(仅一次,不消失)',effect:()=>{landlordActive=true;},once:true},
+        {id:'wound',name:'🩹伤口感染',desc:'究极治疗者在场时炮塔不能回血(仅一次,不消失)',effect:()=>{woundInfection=true;},once:true},
+        {id:'slack',name:'🐌磨洋工',desc:'修复站优先修复炮塔而非基地(仅一次,不消失)',effect:()=>{repairPriorityTower=true;},once:true},
+        {id:'undead',name:'💀不死族',desc:'所有boss概率复活(仅一次,不消失)',effect:()=>{undeadBoss=true;},once:true},
+        {id:'gunpowder',name:'🧨最后的火药',desc:'爆炸单位死亡后必定自爆(仅一次,不消失)',effect:()=>{gunpowderActive=true;},once:true},
+        {id:'support',name:'📡呼叫支援',desc:'小boss死亡后召唤大boss(仅一次,不消失)',effect:()=>{callSupport=true;},once:true},
+        {id:'eastwind',name:'🌪️东风不利',desc:'风障只停滞飞行单位而非秒杀(仅一次,不消失)',effect:()=>{eastWindActive=true;},once:true},
+        {id:'heatwave',name:'☀️三伏天',desc:'随机5个炮塔被献祭',effect:()=>{sacrificeRandomTowers(5);}},
+        {id:'doubleboss',name:'😈祸不单行',desc:'大boss不会只出现一个(仅一次,不消失)',effect:()=>{doubleBoss=true;},once:true},
+        {id:'lockdown',name:'🔒科技封锁',desc:'暂时禁用7种炮塔',effect:()=>{techLockdown();}}
+    ];
+    let selectedAffixes=[]; let seasonWaveGoldBonus=0; let enemySpeedMult=1; let enemyHpMult=1; let enemyArmorBonus=0; let healDisabled=false; let nextWaveBoss=false;
+    // 词条全局flag(仅一次不消失类)与系统级开关
+    let nanjingTreaty=false, landlordActive=false, woundInfection=false, repairPriorityTower=false, undeadBoss=false, gunpowderActive=false, callSupport=false, eastWindActive=false, doubleBoss=false;
+    let techLockedTypes=null;
+    // 天气控制系统
+    let weatherType=null, weatherWavesLeft=0;
+    function shuffleArray(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+    // 判断词条是否为"仅一次不消失"类
+    function isAffixOnce(a){ return a&&a.once===true; }
+    // 判断词条是否已被消耗(不可再抽取): once类看对应flag, 普通类看是否已选
+    function isAffixConsumed(a){ if(!a)return true; if(isAffixOnce(a)){ switch(a.id){ case 'landlord':return landlordActive; case 'wound':return woundInfection; case 'slack':return repairPriorityTower; case 'undead':return undeadBoss; case 'gunpowder':return gunpowderActive; case 'support':return callSupport; case 'eastwind':return eastWindActive; case 'doubleboss':return doubleBoss; } } return selectedAffixes.some(s=>s.id===a.id); }
+    function showAffixSelection(){ fortressRefreshCount=2; const available=AFFIX_POOL.filter(a=>!isAffixConsumed(a)); const pool=shuffleArray([...available]).slice(0,5); renderAffixSelection(pool,[]); }
+    function renderAffixSelection(pool,chosen){ const cnt=chosen.length; let html=`<div class="modal-overlay"><div class="modal" style="max-width:500px;"><h3>🎯 选择词条 (${cnt}/2)</h3><p style="color:#888;font-size:0.8em;">选择2个词条，可刷新${fortressRefreshCount}次</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">`; pool.forEach((a,i)=>{ const sel=chosen.includes(i); html+=`<div onclick="toggleAffix(${i})" style="padding:12px 16px;border-radius:8px;background:${sel?'#3a5a3a':'#2a2a3a'};border:2px solid ${sel?'#4a4':'#444'};cursor:pointer;width:140px;text-align:center;"><div style="color:${sel?'#8f8':'#ddd'};font-weight:bold;">${a.name}</div><div style="color:#888;font-size:0.7em;margin-top:4px;">${a.desc}</div></div>`; }); html+=`</div><div style="text-align:center;margin-top:12px;">`; if(cnt===2)html+=`<button onclick="confirmAffixes()">✅ 确认选择</button> `; if(fortressRefreshCount>0)html+=`<button onclick="refreshAffixes()">🔄 刷新 (${fortressRefreshCount}次)</button> `; html+=`</div></div></div>`; document.getElementById('modalContainer').innerHTML=html; window._affixPool=pool; window._affixChosen=chosen; }
+    window.toggleAffix=function(i){ let c=[...window._affixChosen]; if(c.includes(i))c=c.filter(x=>x!==i); else if(c.length<2)c.push(i); renderAffixSelection(window._affixPool,c); };
+    window.refreshAffixes=function(){ if(fortressRefreshCount<=0)return; fortressRefreshCount--; const av=AFFIX_POOL.filter(a=>!isAffixConsumed(a)); renderAffixSelection(shuffleArray([...av]).slice(0,5),[]); };
+    window.confirmAffixes=function(){ window._affixChosen.map(i=>window._affixPool[i]).forEach(a=>{ if(!isAffixOnce(a)) selectedAffixes.push(a); a.effect(); }); document.getElementById('modalContainer').innerHTML=''; };
+    let fortressRefreshCount=0;
     function clampPoints(amount, force) { if(devMode){points=MAX_POINTS;return;} if(!force && gameMode==='season'&&seasonSubMode==='fortress'&&amount>0)return; /* 坚不可摧:禁止打怪收益(不增加金币) */ points = Math.min(MAX_POINTS, Math.max(0, points + amount)); if(gameMode==='season'&&amount>0){ if(seasonSubMode==='experience'||seasonSubMode==='random') seasonScore+=amount; } }
     function clampCrystals(amount) { if(devMode){crystals=MAX_CRYSTALS;return;} crystals = Math.min(MAX_CRYSTALS, Math.max(0, crystals + amount)); }
 
@@ -231,14 +283,17 @@
         ultimate_flesh:{name:'究极肉山',emoji:'⛰️',hp:5000,speed:0.4,armor:50,damage:14,bounty:125,desc:'巨型肉盾·极高血量',tier:4,special:null,color:'#aa2222'},
         ultimate_ghost:{name:'究极幽魂',emoji:'💀',hp:350,speed:3.0,armor:99,damage:5,bounty:75,desc:'穿墙·高护甲',tier:3,special:'phase',color:'#cc44ff'},
         ultimate_drone:{name:'究极无人机',emoji:'🚀',hp:500,speed:6.0,armor:10,damage:5,bounty:80,desc:'飞行·穿墙·免疫物理',tier:3,special:'phase',color:'#ff4488',flying:true},
-        ultimate_airship:{name:'究极飞艇',emoji:'🛩️',hp:800,speed:3.0,armor:12,damage:6,bounty:100,desc:'飞行·直线冲基地',tier:3,special:'straight',color:'#ccddff',flying:true},
+        ultimate_airship:{name:'究极飞艇',emoji:'🛩️',hp:800,speed:3.0,armor:12,damage:6,bounty:100,desc:'飞行·直线冲基地·带动周围怪物',tier:3,special:'carrier',color:'#ccddff',flying:true},
         ultimate_healer:{name:'究极治疗者',emoji:'❇️',hp:800,speed:0.9,armor:6,damage:1.8,bounty:65,desc:'治疗其他怪物',tier:3,special:'healer',color:'#22ff22'},
         ultimate_shocker:{name:'究极震撼者',emoji:'🌩️',hp:1000,speed:1.5,armor:18,damage:6,bounty:100,desc:'眩晕周围炮塔',tier:4,special:'shocker',color:'#ff6600'},
         ultimate_tank:{name:'究极坦克师',emoji:'🚂',hp:7000,speed:1.3,armor:60,damage:17,bounty:150,desc:'重甲坦克·极高血量',tier:4,special:null,color:'#664422'},
         ultimate_thief:{name:'究极盗贼',emoji:'🏴‍☠️',hp:300,speed:3.5,armor:10,damage:15,bounty:50,desc:'偷取500金币并概率偷走3-8座炮塔',tier:4,special:'ultimate_thief',color:'#222222'},
         ultimate_summoner:{name:'究极召唤师',emoji:'🧟‍♂️',hp:1000,speed:0.7,armor:15,damage:2,bounty:120,desc:'随机生成墓碑·波次开始生成僵尸',tier:4,special:'ultimate_summoner',color:'#660066'},
         _blindbox:{name:'盲盒怪物',emoji:'📦',hp:200,speed:1.0,armor:5,damage:3,bounty:20,desc:'打死后变成随机怪物',tier:1,special:'blindbox',color:'#ff8800'},
-        tombstone:{name:'墓碑',emoji:'🪦',hp:200,speed:0,armor:10,damage:0,bounty:5,desc:'不移动·可被炮塔摧毁',tier:1,special:null,color:'#666666'},
+        tombstone:{name:'墓碑',emoji:'🪦',hp:200,speed:0,armor:10,damage:0,bounty:5,desc:'不移动·定时生成僵尸·可被炮塔摧毁',tier:1,special:'tombstone',color:'#666666'},
+        boss_dancer:{name:'舞者',emoji:'💃',hp:8000,speed:1.0,armor:20,damage:15,bounty:300,desc:'召唤超级墓碑',tier:5,special:'boss_dancer',color:'#ff69b4'},
+        super_tombstone:{name:'超级墓碑',emoji:'🗿',hp:500,speed:0,armor:10,damage:0,bounty:50,desc:'召唤究极怪物',tier:4,special:'super_tombstone',color:'#8b0000'},
+        boss_scholar:{name:'学者',emoji:'🎓',hp:3000,speed:0.8,armor:15,damage:8,bounty:200,desc:'免疫同类炮塔伤害',tier:4,special:'boss_scholar',color:'#4169e1'},
     };
 
     const TOWER_TYPES = {
@@ -251,14 +306,16 @@
         repair:{name:'修复站',icon:'🔧',cost:45,desc:'缓慢回复基地血量',dmg:0,dmgPerLvl:0,cd:3,cdPerLvl:0,range:0,rangePerLvl:0, fields:false},
         toxic:{name:'毒素喷雾器',icon:'☣️',cost:40,desc:'前方锥形毒雾(范围可升级)',dmg:20,dmgPerLvl:2,cd:1.2,cdPerLvl:0.05,range:3,rangePerLvl:0.3, fields:true},
         mine:{name:'水晶矿场',icon:'⛏️',cost:0,desc:'每30秒产出1水晶',dmg:0,dmgPerLvl:0,cd:30,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, crystalCost:3, isSpecial:true},
-        potion:{name:'药水塔',icon:'🧪',crystalCost:50,desc:'施加随机强力debuff',dmg:10,dmgPerLvl:2,cd:4,cdPerLvl:0.3,range:4,rangePerLvl:0, fields:true, isSpecial:true},
-        storm:{name:'风暴核心',icon:'🌪️',crystalCost:80,desc:'击退周围敌人',dmg:5,dmgPerLvl:1,cd:1,cdPerLvl:0.1,range:2.5,rangePerLvl:0.3, fields:true, isSpecial:true},
+        potion:{name:'药水塔',icon:'🧪',crystalCost:50,desc:'施加随机强力debuff(种植于满级毒素喷射器上)',dmg:10,dmgPerLvl:2,cd:4,cdPerLvl:0.3,range:4,rangePerLvl:0, fields:true, isSpecial:true, requiresMaxed:'toxic'},
+        storm:{name:'风暴核心',icon:'🌪️',crystalCost:80,desc:'击退周围敌人(种植于满级风扇上)',dmg:5,dmgPerLvl:1,cd:1,cdPerLvl:0.1,range:2.5,rangePerLvl:0.3, fields:true, isSpecial:true, requiresMaxed:'fan'},
         dynamite:{name:'炸药包',icon:'🧨',cost:25,desc:'放置后爆炸,周围敌人受伤',dmg:500,dmgPerLvl:0,cd:0,cdPerLvl:0,range:2,rangePerLvl:0, fields:false, isOneShot:true},
         windWall:{name:'风障',icon:'🌬️',cost:30,desc:'立刻摧毁所有飞行敌人',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isOneShot:true},
         iceBomb:{name:'极寒之冰',icon:'❄️',cost:20,desc:'冻结范围敌人并造成伤害',dmg:200,dmgPerLvl:0,cd:0,cdPerLvl:0,range:5,rangePerLvl:0, fields:false, isOneShot:true},
-        wireNet:{name:'电线网',icon:'🕸️',crystalCost:30,desc:'放置两个端点形成电光束,对湿敌人1.5倍伤害',dmg:8,dmgPerLvl:1,cd:0.1,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isWireNet:true},
-        mirror:{name:'镜子',icon:'🪞',crystalCost:60,desc:'反射高射炮光束(90°反弹)',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, noUpgrade:true, isMirror:true},
-        blackhole:{name:'黑洞',icon:'🕳️',cost:100000,crystalCost:3000,desc:'吞噬场上所有怪物(一次性·需100000金币+3000钻石)',dmg:99999,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isOneShot:true, isSpecial:true}
+        wireNet:{name:'电线网',icon:'🕸️',crystalCost:30,desc:'放置两个端点形成电光束,对湿敌人1.5倍伤害(种植于满级特斯拉线圈上)',dmg:8,dmgPerLvl:1,cd:0.1,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isWireNet:true, requiresMaxed:'tesla'},
+        blackhole:{name:'黑洞',icon:'🕳️',cost:100000,crystalCost:3000,desc:'吞噬场上所有怪物(一次性·需100000金币+3000钻石)',dmg:99999,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isOneShot:true, isSpecial:true},
+        fan:{name:'风扇',icon:'🌀',cost:80,desc:'直线攻击击退怪物;前方有水吹水蒸气,有冰箱吹冰雾',dmg:5,dmgPerLvl:3,cd:0.5,cdPerLvl:0,range:8,rangePerLvl:0,fields:false,isFan:true},
+        lamp:{name:'路灯',icon:'💡',cost:40,desc:'驱散迷雾照亮黑暗,升级增大范围',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:3,rangePerLvl:1,fields:false,isLamp:true,noUpgrade:false,maxLvl:15},
+        weather:{name:'天气控制',icon:'🌤️',crystalCost:50,desc:'改变天气,2轮后天气效果消失',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0,fields:false,isWeather:true,isSpecial:true}
     };
 
     const OBSTACLE_TYPES = {
@@ -276,7 +333,7 @@
         shield:{name:'盾牌师',emoji:'🛡️',hp:300,damage:30,speed:100,color:'#5588ff',desc:'高血量肉盾'}
     };
 
-    function initGrid() { grid=[]; for(let r=0;r<ROWS;r++){ grid[r]=[]; for(let c=0;c<COLS;c++) grid[r][c]={type:'empty',isPath:false,pathConnections:0,towerType:null,towerLevel:0,towerAttackCD:0,towerDirection:null,obstacleType:null,obstacleLevel:0,obstacleHP:0,obstacleMaxHP:0,stunned:0,barracksCD:0, atkLvl:0, cdLvl:0, rangeLvl:0, overloadTimer:0, obstacleOverload:0, slowLvl:0, hpLvl:0, thornsLvl:0, wireNetPair:null, obstacleUpgrades:{}, regenTimer:0 }; } grid[START_ROW][START_COL].type='path'; grid[START_ROW][START_COL].isPath=true; grid[END_ROW][END_COL].type='path'; grid[END_ROW][END_COL].isPath=true; }
+    function initGrid() { grid=[]; for(let r=0;r<ROWS;r++){ grid[r]=[]; for(let c=0;c<COLS;c++) grid[r][c]={type:'empty',isPath:false,pathConnections:0,towerType:null,towerLevel:0,towerAttackCD:0,towerDirection:null,obstacleType:null,obstacleLevel:0,obstacleHP:0,obstacleMaxHP:0,stunned:0,barracksCD:0, atkLvl:0, cdLvl:0, rangeLvl:0, overloadTimer:0, obstacleOverload:0, slowLvl:0, hpLvl:0, thornsLvl:0, wireNetPair:null, obstacleUpgrades:{}, regenTimer:0, buildingHP:0 }; } grid[START_ROW][START_COL].type='path'; grid[START_ROW][START_COL].isPath=true; grid[END_ROW][END_COL].type='path'; grid[END_ROW][END_COL].isPath=true; }
 
     function countPathNeighbors(r,c){ let n=0; for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath)n++; } return n; }
     function getPathNeighbors(r,c){ const res=[]; for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath)res.push([nr,nc]); } return res; }
@@ -306,11 +363,11 @@
         constructor(typeKey,level){
             const t=ENEMY_TYPES[typeKey]||ENEMY_TYPES.zombie;
             this.typeKey=typeKey; this.name=t.name; this.emoji=t.emoji; this.level=Math.min(MAX_LEVEL,level);
-            let spdBuff=1+bossBuffLevels.speed*0.10; let hpBuff=1+bossBuffLevels.health*0.20;
+            let spdBuff=1+bossBuffLevels.speed*0.10; let hpBuff=1+bossBuffLevels.health*0.25;
             this.maxHP=Math.floor(t.hp*(1+this.level*0.2)*hpBuff);
             this.hp=this.maxHP;
             this.speed=t.speed*(1+this.level*0.08)*spdBuff;
-            this.armor=Math.floor(t.armor+this.level*2)+bossBuffLevels.armor*2;
+            this.armor=Math.floor(t.armor+this.level*2)+bossBuffLevels.armor*3;
             this.damage=Math.floor(t.damage+this.level*1.2);
             this.bounty=Math.floor(t.bounty+this.level*0.4);
             this.special=t.special||null; this.color=t.color; this.pathIndex=0; this.x=0; this.y=0; this.subX=0; this.subY=0;
@@ -321,13 +378,28 @@
             this.healCD=2; this.healAbility=(t.special==='healer'); this.shockCD=0; this.shieldHP=(t.special==='shield')?80:0;
             this.summonCD=0; this.teleportCD=0; this.reflectCD=0; this.reflectChance=(t.special==='reflect')?0.25:0;
             this.ultimateAura=(this.typeKey.startsWith('ultimate_'))?true:false;
-            this.isBoss=(typeKey==='boss'||typeKey==='boss_jiawei'||typeKey==='boss_bomber');
+            this.isBoss=(typeKey==='boss'||typeKey==='boss_jiawei'||typeKey==='boss_bomber'||typeKey==='boss_dancer'||typeKey==='boss_scholar');
+            this.invisible=(typeKey==='ghost'||typeKey==='ultimate_ghost');
             this.straightToBase=(t.special==='straight');
             this.isJiawei=(typeKey==='boss_jiawei');
             this.isBomberBoss=(typeKey==='boss_bomber');
+            this.isDancer=(typeKey==='boss_dancer');
+            this.isScholar=(typeKey==='boss_scholar');
             this.shieldAuraCD=0; this._ultimateBuffed = false; this.bomberCD=0; this.thiefStealCD=0;
             if(this.isBoss||this.isJiawei) bossEnemy=this;
             this.jiaweiSkillCD=0; this.bossSkillCD=0;
+            // 新增:学者免疫炮塔类型记录
+            this.immuneTowerTypes=new Set();
+            // 新增:坦克师开火冷却
+            this.tankFireCD=0;
+            // 新增:轰炸机召唤/投弹冷却
+            this.bomberSummonCD=3; this.bomberBombCD=5;
+            // 新增:舞者召唤超级墓碑冷却
+            this.dancerSummonCD=5;
+            // 新增:毁灭者回血冷却
+            this.bossHealCD=5;
+            // 新增:超级墓碑召唤冷却
+            this.superTombSummonCD=2;
             // 轰炸机boss:飞行直线冲基地(同飞艇)
             if(this.isBomberBoss){ this.straightToBase=true; this.flying=true; }
             // 修复:仅飞行单位直线冲基地,移除让所有地面敌人直冲的错误光环
@@ -337,8 +409,42 @@
         update(dt){
             if(this.reachedEnd){ this.removeTimer-=dt; if(this.isBoss&&this.removeTimer<=0)bossEnemy=null; return; }
             if(!this.alive){if(this.isBoss)bossEnemy=null;return;}
-            // 墓碑:不移动不攻击,只受伤害
-            if(this.typeKey==='tombstone'){ if(this.frozen>0){ this.frozen-=dt; } if(this.burning>0){ this.burning-=dt; this.takeDamage(this.burnDPS*dt,'fire'); } if(this.poisoned>0){ this.poisoned-=dt; this.takeDamage(this.poisonDPS*dt,'poison'); } return; }
+            // 墓碑:不移动不攻击,只受伤害,但定时生成僵尸
+            if(this.typeKey==='tombstone'){
+                if(this.frozen>0){ this.frozen-=dt; }
+                if(this.burning>0){ this.burning-=dt; this.takeDamage(this.burnDPS*dt,'fire'); }
+                if(this.poisoned>0){ this.poisoned-=dt; this.takeDamage(this.poisonDPS*dt,'poison'); }
+                // 墓碑定时生成僵尸
+                if(!this.tombstoneSummonCD) this.tombstoneSummonCD=3;
+                this.tombstoneSummonCD-=dt;
+                if(this.tombstoneSummonCD<=0){
+                    this.tombstoneSummonCD=3;
+                    const sz=new Enemy('zombie',Math.min(MAX_LEVEL,this.level));
+                    sz.x=this.x; sz.y=this.y; sz.subX=this.x; sz.subY=this.y;
+                    sz.pathIndex=0; sz.straightToBase=true;
+                    enemies.push(sz);
+                    spawnParticles(this.x,this.y,'#666666',5);
+                }
+                return;
+            }
+            // 超级墓碑:不移动,每2秒召唤一个随机究极怪物
+            if(this.typeKey==='super_tombstone'){
+                if(this.frozen>0){ this.frozen-=dt; }
+                if(this.burning>0){ this.burning-=dt; this.takeDamage(this.burnDPS*dt,'fire'); }
+                if(this.poisoned>0){ this.poisoned-=dt; this.takeDamage(this.poisonDPS*dt,'poison'); }
+                this.superTombSummonCD-=dt;
+                if(this.superTombSummonCD<=0){
+                    this.superTombSummonCD=2;
+                    const ultTypes=Object.keys(ENEMY_TYPES).filter(k=>k.startsWith('ultimate_'));
+                    const randType=ultTypes[Math.floor(Math.random()*ultTypes.length)];
+                    const e=new Enemy(randType,Math.min(MAX_LEVEL,this.level));
+                    e.x=this.x; e.y=this.y; e.subX=this.x; e.subY=this.y;
+                    e.pathIndex=0; e.straightToBase=true;
+                    enemies.push(e);
+                    spawnParticles(this.x,this.y,'#8b0000',8);
+                }
+                return;
+            }
             if(this.frozen>0){ this.frozen-=dt; if(this.frozen<=0)this.frozen=0; }
             if(this.stunned>0){ this.stunned-=dt; if(this.stunned<=0)this.stunned=0; }
             if(this.burning>0){ this.burning-=dt; let dmg=this.burnDPS*dt; if(this.frozen>0&&this.burning>0)dmg*=1.25; this.takeDamage(dmg,'fire'); if(this.burning<=0){this.burning=0;this.burnDPS=0;} }
@@ -354,6 +460,32 @@
             if(this.special==='shield'){ this.shieldAuraCD-=dt; if(this.shieldAuraCD<=0){ this.shieldAuraCD=1.5; for(const e of enemies.slice()){ if(e===this||!e.alive)continue; if(Math.hypot(e.x-this.x,e.y-this.y)<CELL_SIZE*2.5) e.shieldHP=Math.max(e.shieldHP,40); } } }
             if(this.special==='shocker'||this.isBoss){ this.shockCD-=dt; if(this.shockCD<=0){ this.shockCD=2.5; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'&&Math.hypot(this.x-(c*CELL_SIZE+12),this.y-(r*CELL_SIZE+12))<CELL_SIZE*3.5){ if(Math.random()<0.5)cell.stunned=4; } } } }
             if(this.special==='summoner'){ this.summonCD-=dt; if(this.summonCD<=0){ this.summonCD=2; const sz=new Enemy('zombie',Math.min(MAX_LEVEL,this.level-2)); if(this.straightToBase)sz.straightToBase=true; enemies.push(sz); } }
+            // carrier(究极飞艇):带动周围怪物前进
+            if(this.special==='carrier'&&this.straightToBase){
+                if(!this.carrierAuraCD) this.carrierAuraCD=0.5;
+                this.carrierAuraCD-=dt;
+                if(this.carrierAuraCD<=0){
+                    this.carrierAuraCD=0.5;
+                    for(const e of enemies){
+                        if(e===this||!e.alive||e.typeKey==='tombstone') continue;
+                        const dist=Math.hypot(e.x-this.x,e.y-this.y);
+                        if(dist<CELL_SIZE*4){
+                            // 带动怪物前进:增加其pathIndex或向前推进
+                            if(e.pathIndex>=0&&e.pathIndex<pathOrder.length-1&&!e.straightToBase){
+                                e.pathIndex=Math.min(pathOrder.length-1, e.pathIndex+1);
+                                const [nr,nc]=pathOrder[e.pathIndex];
+                                e.subX=nc*CELL_SIZE+12; e.subY=nr*CELL_SIZE+12;
+                                e.x=e.subX; e.y=e.subY;
+                                spawnParticles(e.x,e.y,'#ccddff',3);
+                            } else if(e.straightToBase){
+                                // 对于直线冲基地的怪物,加速前进
+                                e.subX+=(this.x>e.subX?1:-1)*CELL_SIZE*0.3;
+                                e.subY+=(this.y>e.subY?1:-1)*CELL_SIZE*0.3;
+                            }
+                        }
+                    }
+                }
+            }
             if(this.special==='teleporter' && pathOrder.length>1 && pathCorners.length>0){ this.teleportCD-=dt; if(this.teleportCD<=0){ this.teleportCD=5; let nextCornerIdx=this.pathIndex; for(const ci of pathCorners){ if(ci>this.pathIndex){ nextCornerIdx=ci; break; } } if(nextCornerIdx<=this.pathIndex) nextCornerIdx=Math.min(pathOrder.length-1,this.pathIndex+3); this.pathIndex=nextCornerIdx; this.subX=pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY=pathOrder[this.pathIndex][0]*CELL_SIZE+12; spawnParticles(this.x,this.y,'#20b2aa',15); this.x=this.subX; this.y=this.subY; } }
             if(this.straightToBase){ let tx,ty; if(gameMode==='season'&&seasonSubMode==='besieged'){ const cr=Math.floor(ROWS/2), cc=Math.floor(COLS/2); tx=cc*CELL_SIZE+12; ty=cr*CELL_SIZE+12; } else if(gameMode==='season'&&pathOrder.length>0){ const [er,ec]=pathOrder[pathOrder.length-1]; tx=ec*CELL_SIZE+12; ty=er*CELL_SIZE+12; } else { tx=END_COL*CELL_SIZE+12; ty=END_ROW*CELL_SIZE+12; } const dx=tx-this.subX, dy=ty-this.subY, dist=Math.hypot(dx,dy); if(dist<5){ this.reachedEnd=true; this.alive=false; this.removeTimer=0.35; damageBase(this.damage, this.name); return; } const move=this.speed*CELL_SIZE*dt; this.subX+=(dx/dist)*move; this.subY+=(dy/dist)*move; this.x=this.subX; this.y=this.subY;
                 // 检查当前格子是否有障碍物(四面楚歌模式)
@@ -367,10 +499,22 @@
                     else if(cell.obstacleType==='spring'){ if((cell.springCD||0)<=0){ const dist2=2+(up.distance?up.distance*1:0); const backX=this.subX-(dx/dist)*dist2*CELL_SIZE, backY=this.subY-(dy/dist)*dist2*CELL_SIZE; this.subX=Math.max(0,Math.min(canvas.width-1,backX)); this.subY=Math.max(0,Math.min(canvas.height-1,backY)); this.x=this.subX; this.y=this.subY; spawnParticles(this.x,this.y,'#aaddff',10); cell.springCD=3; } }
                     else if(cell.obstacleType==='confusion'){ const prob=up.effect?0.3+up.effect*0.05:0.3; if(Math.random()<prob){ this.subX-=(dx/dist)*move*3; this.subY-=(dy/dist)*move*3; this.x=this.subX; this.y=this.subY; } this.slowed=Math.max(this.slowed,2); }
                 } }
+                // 通道建筑:直线移动敌人经过时炮塔受到伤害
+                if(gr>=0&&gr<ROWS&&gc>=0&&gc<COLS){ const tcell=grid[gr][gc]; if(tcell.type==='tower'&&tcell.buildingHP>0){ tcell.buildingHP-=this.damage*0.5; spawnParticles(gc*CELL_SIZE+12,gr*CELL_SIZE+12,'#ff6644',4); if(tcell.buildingHP<=0){ tcell.type='path'; tcell.towerType=null; tcell.buildingHP=0; spawnParticles(gc*CELL_SIZE+12,gr*CELL_SIZE+12,'#ff2200',20); } } }
                 return; }
-            if(this.isJiawei){ this.jiaweiSkillCD-=dt; if(this.jiaweiSkillCD<=0){ this.jiaweiSkillCD=8; const skill=Math.floor(Math.random()*4); if(skill===0){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower'){ grid[r][c].stunned=Math.max(grid[r][c].stunned,2); } } else if(skill===1){ for(let i=0;i<5;i++) enemies.push(new Enemy('zombie',Math.min(MAX_LEVEL,this.level))); } else if(skill===2){ this.pathIndex=Math.min(pathOrder.length-1, this.pathIndex+5); } else { damageBase(50, this.name); } } }
+            if(this.isJiawei){ this.jiaweiSkillCD-=dt; if(this.jiaweiSkillCD<=0){ this.jiaweiSkillCD=8; const skill=Math.floor(Math.random()*5); if(skill===0){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower'){ grid[r][c].stunned=Math.max(grid[r][c].stunned,2); } } else if(skill===1){ for(let i=0;i<5;i++) enemies.push(new Enemy('zombie',Math.min(MAX_LEVEL,this.level))); } else if(skill===2){ this.pathIndex=Math.min(pathOrder.length-1, this.pathIndex+5); } else if(skill===3){ damageBase(50, this.name); } else { /* 红色激光:对随机炮塔造成大量伤害 */ const towerList=[]; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')towerList.push([r,c]); if(towerList.length>0){ const [tr,tc]=towerList[Math.floor(Math.random()*towerList.length)]; const tx=tc*CELL_SIZE+12, ty=tr*CELL_SIZE+12; const cell=grid[tr][tc]; if(cell.towerLevel>1)cell.towerLevel-=3; else{ cell.type=cell.isPath?'path':'empty'; cell.towerType=null; cell.buildingHP=0; } spawnParticles(tx,ty,'#ff0000',25); projectiles.push({type:'beam',sx:this.x,sy:this.y,ex:tx,ey:ty,life:0.4,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.3);ctx.save();ctx.strokeStyle=`rgba(255,0,0,${0.9*a})`;ctx.lineWidth=8;ctx.shadowColor='rgba(255,0,0,1)';ctx.shadowBlur=25;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,200,200,${a})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); screenShake=20; } } } }
             // 轰炸机boss:持续轰炸周边炮塔
-            if(this.isBomberBoss){ this.bomberCD-=dt; if(this.bomberCD<=0){ this.bomberCD=1.5; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'&&Math.hypot(this.x-(c*CELL_SIZE+12),this.y-(r*CELL_SIZE+12))<CELL_SIZE*4){ cell.stunned=Math.max(cell.stunned,2); spawnParticles(c*CELL_SIZE+12,r*CELL_SIZE+12,'#ff4400',8); } } } }
+            if(this.isBomberBoss){ this.bomberCD-=dt; if(this.bomberCD<=0){ this.bomberCD=1.5; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'&&Math.hypot(this.x-(c*CELL_SIZE+12),this.y-(r*CELL_SIZE+12))<CELL_SIZE*4){ cell.stunned=Math.max(cell.stunned,2); spawnParticles(c*CELL_SIZE+12,r*CELL_SIZE+12,'#ff4400',8); } } }
+                // 轰炸机:每3秒在自己位置召唤一个自爆虫
+                this.bomberSummonCD-=dt; if(this.bomberSummonCD<=0){ this.bomberSummonCD=3; const ex=new Enemy('exploder',Math.min(MAX_LEVEL,this.level)); ex.x=this.x; ex.y=this.y; ex.subX=this.x; ex.subY=this.y; ex.pathIndex=this.pathIndex; if(this.straightToBase)ex.straightToBase=true; enemies.push(ex); spawnParticles(this.x,this.y,'#ff4444',10); }
+                // 轰炸机:每5秒概率(30%)向远处随机位置投掷炸弹
+                this.bomberBombCD-=dt; if(this.bomberBombCD<=0){ this.bomberBombCD=5; if(Math.random()<0.3){ const bx=Math.random()*canvas.width, by=Math.random()*canvas.height; spawnParticles(bx,by,'#ff6600',20); for(const e of enemies.slice()){ if(!e.alive||e===this)continue; if(Math.hypot(e.x-bx,e.y-by)<CELL_SIZE*2)e.takeDamage(50,'explosive'); } for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ const nr=Math.floor(by/CELL_SIZE)+dr, nc=Math.floor(bx/CELL_SIZE)+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS){ const bcell=grid[nr][nc]; if(bcell.type==='tower'&&bcell.buildingHP>0){ bcell.buildingHP-=30; if(bcell.buildingHP<=0){ bcell.type='empty'; bcell.towerType=null; bcell.buildingHP=0; } } } } projectiles.push({type:'cannonShot',sx:this.x,sy:this.y,ex:bx,ey:by,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.25);ctx.save();ctx.strokeStyle=`rgba(255,80,0,${0.8*a})`;ctx.lineWidth=5;ctx.shadowColor='rgba(255,80,0,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
+            // 舞者boss:每5秒概率(60%)在随机位置召唤超级墓碑
+            if(this.isDancer){ this.dancerSummonCD-=dt; if(this.dancerSummonCD<=0){ this.dancerSummonCD=5; if(Math.random()<0.6){ const st=new Enemy('super_tombstone', this.level); st.speed=0; st.maxHP=500+this.level*20; st.hp=st.maxHP; st.pathIndex=-1; st.x=Math.random()*canvas.width; st.y=Math.random()*canvas.height; st.subX=st.x; st.subY=st.y; enemies.push(st); spawnParticles(st.x,st.y,'#ff69b4',12); } } }
+            // 毁灭者boss:每5秒概率(40%)给周围3格内的怪物回满血
+            if(this.typeKey==='boss'){ this.bossHealCD-=dt; if(this.bossHealCD<=0){ this.bossHealCD=5; if(Math.random()<0.4){ for(const e of enemies){ if(e===this||!e.alive)continue; if(Math.hypot(e.x-this.x,e.y-this.y)<CELL_SIZE*3){ e.hp=e.maxHP; spawnParticles(e.x,e.y,'#44ff44',6); } } } } }
+            // 坦克师:每2秒向最近炮塔发射炮弹,造成伤害
+            if(this.typeKey==='tankmaster'){ this.tankFireCD-=dt; if(this.tankFireCD<=0){ this.tankFireCD=2; let nearest=null,nd=CELL_SIZE*6; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ const d=Math.hypot(this.x-(c*CELL_SIZE+12),this.y-(r*CELL_SIZE+12)); if(d<nd){ nd=d; nearest=[r,c]; } } } if(nearest){ const [tr,tc]=nearest; const tx=tc*CELL_SIZE+12, ty=tr*CELL_SIZE+12; const tcell=grid[tr][tc]; if(tcell.buildingHP>0){ tcell.buildingHP-=25; if(tcell.buildingHP<=0){ tcell.type='empty'; tcell.towerType=null; tcell.buildingHP=0; spawnParticles(tx,ty,'#ff4444',12); } } else { tcell.stunned=Math.max(tcell.stunned,2); } spawnParticles(tx,ty,'#ffaa00',6); projectiles.push({type:'tankShell',sx:this.x,sy:this.y,ex:tx,ey:ty,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.25);ctx.save();ctx.strokeStyle=`rgba(255,170,0,${0.9*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,170,0,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
             // 究极盗贼:偷取500金币并概率偷走3-8座炮塔
             if(this.special==='ultimate_thief'){ this.thiefStealCD-=dt; if(this.thiefStealCD<=0){ this.thiefStealCD=8; const towerList=[]; for(let tr=0;tr<ROWS;tr++)for(let tc=0;tc<COLS;tc++)if(grid[tr][tc].type==='tower')towerList.push([tr,tc]); if(towerList.length>0){ const stealCount=Math.min(towerList.length, 3+Math.floor(Math.random()*6)); for(let i=0;i<stealCount;i++){ const [tr,tc]=towerList[Math.floor(Math.random()*towerList.length)]; if(grid[tr][tc].type==='tower'){ grid[tr][tc].type='empty'; grid[tr][tc].towerType=null; spawnParticles(tc*CELL_SIZE+12,tr*CELL_SIZE+12,'#222222',8); } } } } }
             // 究极召唤师:随机生成墓碑(被索敌但不动),波次开始时生成僵尸
@@ -427,17 +571,33 @@
                         if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; spawnParticles(c*CELL_SIZE+12, r*CELL_SIZE+12, '#ff4400', 20); }
                     }
                 }
+                // 通道建筑:敌人经过时炮塔受到伤害
+                if(cell.type==='tower' && cell.buildingHP>0){
+                    cell.buildingHP -= this.damage*0.5;
+                    spawnParticles(c*CELL_SIZE+12, r*CELL_SIZE+12, '#ff6644', 4);
+                    if(cell.buildingHP<=0){ cell.type='path'; cell.towerType=null; cell.buildingHP=0; spawnParticles(c*CELL_SIZE+12, r*CELL_SIZE+12, '#ff2200', 20); }
+                }
             }
         }
         takeDamage(amount,type,sourceRow,sourceCol){
             if(this.flying && type==='physical') return;
+            // 贾维:全图抗伤,伤害减少50%
+            if(this.isJiawei) amount*=0.5;
+            // 学者:记录攻击它的炮塔类型,同类炮塔后续伤害变为0
+            if(this.isScholar && sourceRow!==undefined && sourceCol!==undefined){
+                const scell=grid[sourceRow]?.[sourceCol];
+                if(scell && scell.type==='tower' && scell.towerType){
+                    if(this.immuneTowerTypes.has(scell.towerType)) return;
+                    this.immuneTowerTypes.add(scell.towerType);
+                }
+            }
             if(this.special==='reflect'&&Math.random()<this.reflectChance){ if(sourceRow!==undefined&&sourceCol!==undefined){ const cell=grid[sourceRow]?.[sourceCol]; if(cell&&cell.type==='tower'){ cell.stunned=Math.max(cell.stunned,1.2); } } return; }
             // 修复:传送者受击瞬移加5秒冷却,避免高频塔秒传到基地
             if(this.special==='teleporter' && this.alive && this.frozen<=0 && this.teleportCD<=0){
                 this.teleportCD=5;
                 if(this.pathIndex<pathOrder.length-1){ const jump = Math.min(3, pathOrder.length-1-this.pathIndex); this.pathIndex += jump; this.subX = pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY = pathOrder[this.pathIndex][0]*CELL_SIZE+12; spawnParticles(this.x,this.y,'#20b2aa',12); this.x=this.subX; this.y=this.subY; }
             }
-            let dmg=amount*(1-globalPenalties.damageReduction*0.05);
+            let dmg=amount*(1-globalPenalties.damageReduction);
             // 火雷腐化:每次受击伤害+1%(可叠加),每次受击增加1层
             if(globalPenalties.corruption>0){ this.corruptionStacks=(this.corruptionStacks||0)+1; dmg*=Math.pow(1.01, this.corruptionStacks); }
             if(this.shieldHP>0){ const absorbed=Math.min(this.shieldHP,dmg); this.shieldHP-=absorbed; dmg-=absorbed; }
@@ -465,15 +625,21 @@
             if(gameMode==='season'){ seasonKills++; seasonScore+=Math.floor(this.bounty*1.5); }
             if(this.typeKey==='boss'){ clampCrystals(8); bossEnemy=null; if(gameMode!=='season')showBossPenaltySelection(); }
             else if(this.typeKey==='boss_jiawei'){ clampCrystals(15); bossEnemy=null; showBossPenaltySelection(5); }
-            else if(this.typeKey==='boss_bomber'){ clampCrystals(12); bossEnemy=null; showBossPenaltySelection(3); }
-            if(this.special==='explode'||this.special==='super_explode'){ const range=this.special==='super_explode'?CELL_SIZE*2.5:CELL_SIZE*1.5; const dmg=40; for(const e of enemies.slice()){ if(e===this||!e.alive)continue; if(Math.hypot(e.x-this.x,e.y-this.y)<range)e.takeDamage(dmg,'explosive'); } const cr=Math.round((this.y-12)/CELL_SIZE), cc=Math.round((this.x-12)/CELL_SIZE); for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ const nr=cr+dr, nc=cc+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS){ const cell=grid[nr][nc]; if(cell.type==='tower'){ if(Math.random()<0.5+this.level*0.005){ if(cell.towerLevel>1)cell.towerLevel--; else{ cell.type='empty'; cell.towerType=null; } } } else if(cell.type==='obstacle' && !OBSTACLE_TYPES[cell.obstacleType]?.indestructible){ cell.obstacleHP-=30; if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } } } } }
+            else if(this.typeKey==='boss_bomber'){ clampCrystals(12); bossEnemy=null; showBossPenaltySelection(5); }
+            else if(this.typeKey==='boss_dancer'){ clampCrystals(14); bossEnemy=null; showBossPenaltySelection(5); }
+            else if(this.typeKey==='boss_scholar'){ clampCrystals(6); bossEnemy=null; showBossPenaltySelection(5); }
+            // 呼叫支援:小boss死亡后召唤大boss
+            if(callSupport && (this.typeKey==='boss_jiawei'||this.typeKey==='boss_bomber'||this.typeKey==='boss_dancer'||this.typeKey==='boss_scholar')){ const nb=new Enemy('boss',Math.max(1,this.level)); nb.pathIndex=Math.max(0,Math.min((pathOrder.length||1)-1,this.pathIndex)); nb.initPosition(); enemies.push(nb); spawnParticles(this.x,this.y,'#ff0000',20); }
+            // 不死族:boss概率复活
+            if(undeadBoss && this.isBoss && Math.random()<0.5){ this.alive=true; this.hp=this.maxHP*0.5; bossEnemy=this; spawnParticles(this.x,this.y,'#880088',25); return; }
+            if(this.special==='explode'||this.special==='super_explode'){ screenShake=10; const range=this.special==='super_explode'?CELL_SIZE*2.5:CELL_SIZE*1.5; const dmg=40; for(const e of enemies.slice()){ if(e===this||!e.alive)continue; if(Math.hypot(e.x-this.x,e.y-this.y)<range)e.takeDamage(dmg,'explosive'); } const cr=Math.round((this.y-12)/CELL_SIZE), cc=Math.round((this.x-12)/CELL_SIZE); for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ const nr=cr+dr, nc=cc+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS){ const cell=grid[nr][nc]; if(cell.type==='tower'){ if(gunpowderActive||Math.random()<0.5+this.level*0.005){ if(cell.towerLevel>1)cell.towerLevel--; else{ cell.type='empty'; cell.towerType=null; } } } else if(cell.type==='obstacle' && !OBSTACLE_TYPES[cell.obstacleType]?.indestructible){ cell.obstacleHP-=30; if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } } } } }
             if(this.special==='split'||this.special==='splitter'){ const cnt=this.special==='splitter'?2:(this.splitStage===0?2:3); for(let i=0;i<cnt;i++){ const b=new Enemy(this.typeKey,Math.max(1,this.level-3)); b.maxHP=Math.floor(this.maxHP*(this.special==='splitter'?0.4:0.5)); b.hp=b.maxHP; b.pathIndex=this.pathIndex; b.subX=this.x+(Math.random()-0.5)*20; b.subY=this.y+(Math.random()-0.5)*20; b.x=b.subX; b.y=b.subY; b.special=null; if(this.straightToBase)b.straightToBase=true; enemies.push(b); } }
             // 究极史莱姆:死亡分裂为16个普通史莱姆
             if(this.special==='split_16'){ for(let i=0;i<16;i++){ const b=new Enemy('slime',Math.max(1,Math.floor(this.level/2))); b.maxHP=Math.floor(ENEMY_TYPES.slime.hp*(1+b.level*0.2)); b.hp=b.maxHP; b.pathIndex=this.pathIndex; b.subX=this.x+(Math.random()-0.5)*40; b.subY=this.y+(Math.random()-0.5)*40; b.x=b.subX; b.y=b.subY; if(this.straightToBase)b.straightToBase=true; enemies.push(b); } spawnParticles(this.x,this.y,'#8822cc',30); }
             if(!achievementData.totalKills)achievementData.totalKills=0; achievementData.totalKills++; updateUI();
         }
         draw(ctx){
-            if(!this.alive&&!this.reachedEnd)return; if(this.reachedEnd&&this.removeTimer<=0)return;
+            if(!this.alive&&!this.reachedEnd)return; if(this.reachedEnd&&this.removeTimer<=0)return; ctx.save(); if(this.invisible)ctx.globalAlpha=0.3;
             const size=CELL_SIZE*0.7, x=this.x, y=this.y;
             if(this.reachedEnd){ ctx.fillStyle='rgba(255,80,80,0.8)'; } else if(this.flashTimer>0&&Math.floor(this.flashTimer*30)%2===0)ctx.fillStyle='#fff'; else ctx.fillStyle=this.color;
             ctx.beginPath(); ctx.arc(x,y,size/2,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#000'; ctx.lineWidth=1.5; ctx.stroke();
@@ -487,6 +653,7 @@
                 ctx.fillRect(barX,barY,barWidth*hpRatio,barHeight);
                 ctx.fillStyle='#fff'; ctx.font='7px sans-serif'; ctx.fillText(`Lv${this.level}`,x,barY+barHeight+7);
             }
+            ctx.restore();
         }
     }
     class Ally{
@@ -548,16 +715,18 @@
     }
     function towerEffectiveDmg(type, atkLvl){ const t=TOWER_TYPES[type]; return t?Math.floor(t.dmg + t.dmgPerLvl*atkLvl):0; }
     function towerEffectiveCD(type, cdLvl){ const t=TOWER_TYPES[type]; return t?Math.max(0.005, t.cd - t.cdPerLvl*cdLvl):1; }
-    function towerEffectiveRange(type, rangeLvl){ const t=TOWER_TYPES[type]; return t?(t.range + (t.rangePerLvl||0)*rangeLvl):3; }
-    function towerDmg(type, cell){ return towerEffectiveDmg(type, cell.atkLvl||0); } function towerCD(type, cell){ return towerEffectiveCD(type, cell.cdLvl||0); } function towerRange(type, cell){ return towerEffectiveRange(type, cell.rangeLvl||0); }
+    function towerEffectiveRange(type, rangeLvl){ const t=TOWER_TYPES[type]; let r=t?(t.range + (t.rangePerLvl||0)*rangeLvl):3; if(weatherType==='fog'&&type!=='lamp') r*=0.7; return r; }
+    function towerDmg(type, cell){ let d=towerEffectiveDmg(type, cell.atkLvl||0); if(cell.atkDebuffTimer>0)d=Math.floor(d*0.7); return d; } function towerCD(type, cell){ return towerEffectiveCD(type, cell.cdLvl||0); } function towerRange(type, cell){ return towerEffectiveRange(type, cell.rangeLvl||0); }
     function isTowerUnlocked(type){ if(devMode||gameMode==='season')return true; const t=TOWER_TYPES[type]; if(!t||t.isOneShot||t.isWireNet||t.isMirror) return true; return TOWER_UNLOCK_WAVE[type] !== undefined ? TOWER_UNLOCK_WAVE[type] <= waveNumber : true; }
     function isObstacleUnlocked(type){ if(devMode||gameMode==='season')return true; const o=OBSTACLE_TYPES[type]; if(!o) return false; return o.unlockWave !== undefined ? o.unlockWave <= waveNumber : true; }
 
     function processTowers(dt){
+        if(weatherType==='rain'){ for(const e of enemies){ if(e.alive) e.wet=Math.max(e.wet||0,1); } }
         for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
             const cell=grid[r][c]; if(cell.type!=='tower')continue;
             if(cell.stunned>0){ cell.stunned-=dt; continue; }
             if(cell.overloadTimer>0){ cell.overloadTimer-=dt; if(cell.overloadTimer<=0){ cell.type='empty'; cell.towerType=null; continue; } }
+            if(cell.atkDebuffTimer>0)cell.atkDebuffTimer-=dt;
             // 献祭状态:所有炮塔CD=0.001(发射/生产等)
             const sacCd = cell.overloadTimer>0 ? 0.001 : 0;
             if(cell.towerType==='mine'){ cell.towerAttackCD-=dt; if(cell.towerAttackCD<=0){ if(!(gameMode==='season'&&seasonSubMode==='fortress')){ clampCrystals(1); // 究极矿场:生产水晶同时也生产金币
@@ -565,13 +734,15 @@
             if(cell.towerType==='dynamite' || cell.towerType==='windWall' || cell.towerType==='iceBomb' || cell.towerType==='blackhole'){
                 activateOneShot(cell, r, c); continue;
             }
-            if(cell.towerType==='wireNet'){ cell.towerAttackCD-=dt; if(cell.towerAttackCD<=0){ cell.towerAttackCD=sacCd||0.1; const pair=cell.wireNetPair; if(pair){ const pr=pair[0], pc=pair[1]; const pcell=grid[pr]?.[pc]; if(pcell&&pcell.type==='tower'&&pcell.towerType==='wireNet'){ const sx=c*CELL_SIZE+12,sy=r*CELL_SIZE+12,ex=pc*CELL_SIZE+12,ey=pr*CELL_SIZE+12; let hitAny=false,hitWet=false; for(const e of enemies){ if(!e.alive)continue; if(distToSegment(e.x,e.y,sx,sy,ex,ey)<CELL_SIZE*0.6){ const wasWet=e.wet>0; e.takeDamage(towerDmg('wireNet',cell),'lightning',r,c); e.shocked=Math.max(e.shocked,1+cell.atkLvl*0.2); hitAny=true; if(wasWet){ hitWet=true; spawnParticles(e.x,e.y,'#ffff00',8); spawnParticles(e.x,e.y,'#88ccff',6); // 连锁闪电:对附近湿敌人也造成伤害
+            if(cell.towerType==='lamp'||cell.towerType==='weather'||(techLockedTypes&&techLockedTypes.has(cell.towerType))) continue;
+            if(cell.towerType==='wireNet'){ cell.towerAttackCD-=dt; if(cell.towerAttackCD<=0){ cell.towerAttackCD=sacCd||0.1; const pair=cell.wireNetPair; if(pair){ const pr=pair[0], pc=pair[1]; const pcell=grid[pr]?.[pc]; if(pcell&&pcell.type==='tower'&&pcell.towerType==='wireNet'){ const sx=c*CELL_SIZE+12,sy=r*CELL_SIZE+12,ex=pc*CELL_SIZE+12,ey=pr*CELL_SIZE+12; let hitAny=false,hitWet=false; for(const e of enemies){ if(!canTargetEnemy(e))continue; if(distToSegment(e.x,e.y,sx,sy,ex,ey)<CELL_SIZE*0.6){ const wasWet=e.wet>0; e.takeDamage(towerDmg('wireNet',cell),'lightning',r,c); e.shocked=Math.max(e.shocked,1+cell.atkLvl*0.2); hitAny=true; if(wasWet){ hitWet=true; spawnParticles(e.x,e.y,'#ffff00',8); spawnParticles(e.x,e.y,'#88ccff',6); // 连锁闪电:对附近湿敌人也造成伤害
                                     for(const e2 of enemies){ if(!e2.alive||e2===e)continue; if(e2.wet>0&&Math.hypot(e2.x-e.x,e2.y-e.y)<CELL_SIZE*2){ e2.takeDamage(towerDmg('wireNet',cell)*0.5,'lightning'); e2.shocked=Math.max(e2.shocked,1); spawnParticles(e2.x,e2.y,'#ffff00',4); // 连锁闪电视觉
                                             projectiles.push({type:'beam',sx:e.x,sy:e.y,ex:e2.x,ey:e2.y,life:0.2,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.15);ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } } else { spawnParticles(e.x,e.y,'#88ccff',4); } } } if(hitAny){ // 电线网闪电束特效
                             projectiles.push({type:'beam',sx,sy,ex,ey,life:0.15,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.1);ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } } } continue; }
             if(cell.towerType==='mirror') continue;
             cell.towerAttackCD-=dt; if(cell.towerAttackCD<=0){ cell.towerAttackCD=sacCd||towerCD(cell.towerType,cell); towerAttack(cell,r,c); }
-            if(cell.towerType==='repair'){ if(!(gameMode==='season'&&seasonSubMode==='fortress')){ const healRate=(0.3+cell.towerLevel*0.08)*(cell.overloadTimer>0?10:1); baseHP=Math.min(maxBaseHP,baseHP+healRate*dt); if(cell.overloadTimer>0)spawnTowerEffect(c*CELL_SIZE+12,r*CELL_SIZE+12,'#40ff40',2); // 究极修复站:概率保护场上炮塔,并修复仙人掌和拦路石
+            if(cell.towerType==='repair'){ if(!(gameMode==='season'&&seasonSubMode==='fortress')){ const healRate=(0.3+cell.towerLevel*0.08)*(cell.overloadTimer>0?10:1); if(!repairPriorityTower){ baseHP=Math.min(maxBaseHP,baseHP+healRate*dt); if(cell.overloadTimer>0)spawnTowerEffect(c*CELL_SIZE+12,r*CELL_SIZE+12,'#40ff40',2); } // 修复站可修复炮塔:每0.5秒修复范围内血量最低的炮塔10HP(伤口感染:究极治疗者在场时禁用)
+                    if(!(woundInfection && enemies.some(e=>e.alive&&e.typeKey==='ultimate_healer'))){ cell._towerRepairCD=(cell._towerRepairCD||0)-dt; if(cell._towerRepairCD<=0){ cell._towerRepairCD=0.5; let _bt=null,_br=1.1; const _cx=c*CELL_SIZE+12,_cy=r*CELL_SIZE+12,_rr=CELL_SIZE*1.5; for(let pr=0;pr<ROWS;pr++)for(let pc=0;pc<COLS;pc++){ const tc=grid[pr][pc]; if(tc.type!=='tower'||(pr===r&&pc===c))continue; if(Math.hypot(pc*CELL_SIZE+12-_cx,pr*CELL_SIZE+12-_cy)>_rr)continue; if(tc.buildingHP>0&&tc.buildingHP<100&&tc.buildingHP/100<_br){_br=tc.buildingHP/100;_bt=[pr,pc];} } if(_bt){ const tc=grid[_bt[0]][_bt[1]]; tc.buildingHP=Math.min(100,tc.buildingHP+10); spawnParticles(_bt[1]*CELL_SIZE+12,_bt[0]*CELL_SIZE+12,'#40ff40',3); } } } // 究极修复站:概率保护场上炮塔,并修复仙人掌和拦路石
                     if(isUltimateTower(cell)){ cell.repairProtectCD=(cell.repairProtectCD||0)-dt; if(cell.repairProtectCD<=0){ cell.repairProtectCD=5; // 保护随机3座炮塔(眩晕免疫)
                         let count=0; for(let pr=0;pr<ROWS&&count<3;pr++)for(let pc=0;pc<COLS&&count<3;pc++){ const pc2=grid[pr][pc]; if(pc2.type==='tower'&&Math.random()<0.3){ pc2.stunned=0; pc2.protected=3; count++; } } // 修复仙人掌和拦路石
                         for(let pr=0;pr<ROWS;pr++)for(let pc=0;pc<COLS;pc++){ const oc=grid[pr][pc]; if(oc.type==='obstacle'&&(oc.obstacleType==='cactus'||oc.obstacleType==='stone')&&oc.obstacleHP<oc.obstacleMaxHP){ oc.obstacleHP=Math.min(oc.obstacleMaxHP,oc.obstacleHP+20); spawnParticles(pc*CELL_SIZE+12,pr*CELL_SIZE+12,'#40ff40',4); } } } } } }
@@ -579,9 +750,9 @@
     }
     function distToSegment(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1; const l2=dx*dx+dy*dy; if(l2===0)return Math.hypot(px-x1,py-y1); let t=((px-x1)*dx+(py-y1)*dy)/l2; t=Math.max(0,Math.min(1,t)); return Math.hypot(px-(x1+t*dx),py-(y1+t*dy)); }
     function activateOneShot(cell, row, col){ const type=cell.towerType; const dmg=towerEffectiveDmg(type,0); const range=towerEffectiveRange(type,0)*CELL_SIZE; const cx=col*CELL_SIZE+12, cy=row*CELL_SIZE+12;
-        if(type==='dynamite'){ for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-cx,e.y-cy)<range) e.takeDamage(dmg,'explosive'); } spawnParticles(cx,cy,'#ffaa00',30); }
-        else if(type==='windWall'){ const flyingEnemies = enemies.filter(e=>e.alive&&e.flying); flyingEnemies.forEach(e=>{ e.alive=false; e.hp=0; e.die(); }); spawnParticles(cx,cy,'#88ff88',25); }
-        else if(type==='iceBomb'){ for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-cx,e.y-cy)<range){ e.takeDamage(dmg,'ice'); e.frozen=Math.max(e.frozen,5); } } spawnParticles(cx,cy,'#88ccff',30); }
+        if(type==='dynamite'){ for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-cx,e.y-cy)<range) e.takeDamage(dmg,'explosive'); } spawnParticles(cx,cy,'#ffaa00',30); }
+        else if(type==='windWall'){ const flyingEnemies = enemies.filter(e=>e.alive&&e.flying); flyingEnemies.forEach(e=>{ if(eastWindActive){ e.slowed=Math.max(e.slowed||0,3); e.slowAmount=Math.max(e.slowAmount||0,0.9); } else { e.alive=false; e.hp=0; e.die(); } }); spawnParticles(cx,cy,'#88ff88',25); }
+        else if(type==='iceBomb'){ for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-cx,e.y-cy)<range){ e.takeDamage(dmg,'ice'); e.frozen=Math.max(e.frozen,5); } } spawnParticles(cx,cy,'#88ccff',30); }
         else if(type==='blackhole'){ // 黑洞:吞噬场上所有怪物
             for(const e of enemies.slice()){ if(e.alive){ e.hp=0; e.die(); } }
             for(let i=0;i<80;i++)particles.push({x:canvas.width/2,y:canvas.height/2,vx:(Math.random()-0.5)*300,vy:(Math.random()-0.5)*300,life:1.2,maxLife:1.2,color:'#aa00ff',size:3+Math.random()*3});
@@ -600,7 +771,7 @@
                 for(const [ddx,ddy] of dirs4){
                     let target=null;
                     for(const e of enemies.slice()){
-                        if(!e.alive)continue;
+                        if(!canTargetEnemy(e))continue;
                         // 判断在十字方向上(横向或纵向)
                         if(ddx!==0){ // 横向
                             if(Math.abs(e.y-ty)<CELL_SIZE*0.8 && (e.x-tx)*ddx>0 && Math.hypot(e.x-tx,e.y-ty)<CELL_SIZE*30){ e.takeDamage(dmg,'physical',row,col); target=e; break; }
@@ -614,14 +785,14 @@
                     spawnTowerEffect(target.x,target.y,'#ffe080',3); anyHit=true; }
                 }
                 // 究极箭塔:10%概率360°射一圈箭矢(仅有敌人时)
-                if(anyHit&&isUltimateTower(cell)&&Math.random()<0.1){ for(let a=0;a<8;a++){ const ang=a*Math.PI/4; const tx2=tx+Math.cos(ang)*CELL_SIZE*3, ty2=ty+Math.sin(ang)*CELL_SIZE*3; for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.abs((e.x-tx)*Math.sin(ang)-(e.y-ty)*Math.cos(ang))<CELL_SIZE*0.8&&(e.x-tx)*Math.cos(ang)+(e.y-ty)*Math.sin(ang)>0){ e.takeDamage(dmg*0.5,'physical',row,col); } } projectiles.push({type:'arrow',sx:tx,sy:ty,ex:tx2,ey:ty2,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a2=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(255,220,100,${a2})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } spawnTowerEffect(tx,ty,'#ffdd44',12); }
+                if(anyHit&&isUltimateTower(cell)&&Math.random()<0.1){ for(let a=0;a<8;a++){ const ang=a*Math.PI/4; const tx2=tx+Math.cos(ang)*CELL_SIZE*3, ty2=ty+Math.sin(ang)*CELL_SIZE*3; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.abs((e.x-tx)*Math.sin(ang)-(e.y-ty)*Math.cos(ang))<CELL_SIZE*0.8&&(e.x-tx)*Math.cos(ang)+(e.y-ty)*Math.sin(ang)>0){ e.takeDamage(dmg*0.5,'physical',row,col); } } projectiles.push({type:'arrow',sx:tx,sy:ty,ex:tx2,ey:ty2,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a2=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(255,220,100,${a2})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } spawnTowerEffect(tx,ty,'#ffdd44',12); }
                 break;
             }
-            case'ice': { const range=towerRange('ice',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ e.takeDamage(dmg,'ice',row,col); e.slowed=Math.max(e.slowed,2+cell.atkLvl*0.4); e.slowAmount=Math.max(e.slowAmount,0.3+cell.atkLvl*0.05); if(Math.random()<(0.15+cell.atkLvl*0.02))e.frozen=Math.max(e.frozen,3); hit=true; spawnParticles(e.x,e.y,'#aaeeff',5); } } if(hit){ spawnTowerEffect(tx,ty,'#88ccff',8); // 冰雾特效:范围区域内的蓝色半透明粒子
+            case'ice': { const range=towerRange('ice',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ e.takeDamage(dmg,'ice',row,col); e.slowed=Math.max(e.slowed,2+cell.atkLvl*0.4); e.slowAmount=Math.max(e.slowAmount,0.3+cell.atkLvl*0.05); if(Math.random()<(0.15+cell.atkLvl*0.02))e.frozen=Math.max(e.frozen,3); hit=true; spawnParticles(e.x,e.y,'#aaeeff',5); } } if(hit){ spawnTowerEffect(tx,ty,'#88ccff',8); // 冰雾特效:范围区域内的蓝色半透明粒子
                     for(let i=0;i<12;i++){ const ang=Math.random()*Math.PI*2, rad=Math.random()*range; particles.push({x:tx+Math.cos(ang)*rad,y:ty+Math.sin(ang)*rad,vx:(Math.random()-0.5)*20,vy:(Math.random()-0.5)*20,life:0.8,maxLife:0.8,color:'#ccffff',size:3+Math.random()*3}); } // 冰雾光环
                     projectiles.push({type:'iceRing',x:tx,y:ty,r:range,life:0.4,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.3);ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.08*a})`;ctx.fill();ctx.restore();}}); } // 究极冰箱:间歇性向+形或X形发射长冰雾
-                if(isUltimateTower(cell)&&Math.random()<0.15){ const isX=Math.random()<0.5; const dirs=isX?[[1,1],[1,-1],[-1,1],[-1,-1]]:[[1,0],[-1,0],[0,1],[0,-1]]; const beamLen=CELL_SIZE*8; for(const [dx,dy] of dirs){ const ex2=tx+dx*beamLen, ey2=ty+dy*beamLen; for(const e of enemies.slice()){ if(!e.alive)continue; const ed=Math.abs((e.x-tx)*dy-(e.y-ty)*dx); if(ed<CELL_SIZE*0.8&&(e.x-tx)*dx+(e.y-ty)*dy>0){ e.slowed=Math.max(e.slowed,3); e.slowAmount=Math.max(e.slowAmount,0.5); e.frozen=Math.max(e.frozen,2); e.takeDamage(dmg*0.5,'ice',row,col); } } projectiles.push({type:'iceBeam',sx:tx,sy:ty,ex:ex2,ey:ey2,life:0.4,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.3);ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.4;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } break; }
-            case'fire': case'toxic': { const dir=cell.towerDirection||[0,1]; const len=towerEffectiveRange(cell.towerType, cell.rangeLvl), width=1; let hit=false; const isToxic=cell.towerType==='toxic'; const beamLen=len*CELL_SIZE; const ex2=tx+dir[1]*beamLen, ey2=ty+dir[0]*beamLen; for(const e of enemies.slice()){ if(!e.alive)continue; const dx=e.x-tx, dy=e.y-ty; const along=dx*dir[1]+dy*dir[0]; const proj=Math.abs(dx*dir[0]-dy*dir[1]); if(along>0&&along<beamLen&&proj<width*CELL_SIZE*0.7){ if(isToxic){ e.poisoned=Math.max(e.poisoned,3); e.poisonDPS=Math.max(e.poisonDPS,5+cell.atkLvl*2); e.poisonStacks=Math.min(5, (e.poisonStacks||0)+1); } else{ e.burning=Math.max(e.burning,2+cell.atkLvl*0.3); e.burnDPS=Math.max(e.burnDPS,4+cell.atkLvl*1.5); } e.takeDamage(dmg, isToxic?'poison':'fire',row,col); hit=true; } } if(hit){ spawnTowerEffect(tx+dir[1]*CELL_SIZE,ty+dir[0]*CELL_SIZE, isToxic?'#88ff00':'#ff6600',6); // 喷火/喷毒特效:方向性光束
+                if(isUltimateTower(cell)&&Math.random()<0.15){ const isX=Math.random()<0.5; const dirs=isX?[[1,1],[1,-1],[-1,1],[-1,-1]]:[[1,0],[-1,0],[0,1],[0,-1]]; const beamLen=CELL_SIZE*8; for(const [dx,dy] of dirs){ const ex2=tx+dx*beamLen, ey2=ty+dy*beamLen; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const ed=Math.abs((e.x-tx)*dy-(e.y-ty)*dx); if(ed<CELL_SIZE*0.8&&(e.x-tx)*dx+(e.y-ty)*dy>0){ e.slowed=Math.max(e.slowed,3); e.slowAmount=Math.max(e.slowAmount,0.5); e.frozen=Math.max(e.frozen,2); e.takeDamage(dmg*0.5,'ice',row,col); } } projectiles.push({type:'iceBeam',sx:tx,sy:ty,ex:ex2,ey:ey2,life:0.4,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.3);ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.4;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } break; }
+            case'fire': case'toxic': { const dir=cell.towerDirection||[0,1]; const len=towerEffectiveRange(cell.towerType, cell.rangeLvl), width=1; let hit=false; const isToxic=cell.towerType==='toxic'; const beamLen=len*CELL_SIZE; const ex2=tx+dir[1]*beamLen, ey2=ty+dir[0]*beamLen; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const dx=e.x-tx, dy=e.y-ty; const along=dx*dir[1]+dy*dir[0]; const proj=Math.abs(dx*dir[0]-dy*dir[1]); if(along>0&&along<beamLen&&proj<width*CELL_SIZE*0.7){ if(isToxic){ e.poisoned=Math.max(e.poisoned,3); e.poisonDPS=Math.max(e.poisonDPS,5+cell.atkLvl*2); e.poisonStacks=Math.min(5, (e.poisonStacks||0)+1); } else{ e.burning=Math.max(e.burning,2+cell.atkLvl*0.3); e.burnDPS=Math.max(e.burnDPS,4+cell.atkLvl*1.5); } e.takeDamage(dmg, isToxic?'poison':'fire',row,col); hit=true; } } if(hit){ spawnTowerEffect(tx+dir[1]*CELL_SIZE,ty+dir[0]*CELL_SIZE, isToxic?'#88ff00':'#ff6600',6); // 喷火/喷毒特效:方向性光束
                     if(isToxic){ // 毒云粒子
                         for(let i=0;i<8;i++){ const t=Math.random(); const px=tx+dir[1]*beamLen*t+(Math.random()-0.5)*CELL_SIZE*0.6, py=ty+dir[0]*beamLen*t+(Math.random()-0.5)*CELL_SIZE*0.6; particles.push({x:px,y:py,vx:(Math.random()-0.5)*30,vy:(Math.random()-0.5)*30,life:0.7,maxLife:0.7,color:'#66dd00',size:3+Math.random()*3}); }
                         projectiles.push({type:'toxicStream',sx:tx,sy:ty,ex:ex2,ey:ey2,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(100,220,0,${0.4*a})`;ctx.lineWidth=CELL_SIZE*0.7;ctx.shadowColor='rgba(100,220,0,0.6)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}});
@@ -630,14 +801,14 @@
                         projectiles.push({type:'fireStream',sx:tx,sy:ty,ex:ex2,ey:ey2,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.5;ctx.shadowColor='rgba(255,120,0,0.8)';ctx.shadowBlur=18;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,200,50,${0.7*a})`;ctx.lineWidth=CELL_SIZE*0.2;ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}});
                     } } // 究极喷火枪/毒素:半圆范围+长条火焰/毒雾
                 if(isUltimateTower(cell)){ const dir=cell.towerDirection||[0,1]; const isToxic2=cell.towerType==='toxic'; const beamLen2=CELL_SIZE*10; const ex3=tx+dir[1]*beamLen2, ey3=ty+dir[0]*beamLen2; // 长条火焰/毒雾
-                    for(const e of enemies.slice()){ if(!e.alive)continue; const dx2=e.x-tx, dy2=e.y-ty; const along2=dx2*dir[1]+dy2*dir[0]; const proj2=Math.abs(dx2*dir[0]-dy2*dir[1]); if(along2>0&&along2<beamLen2&&proj2<CELL_SIZE*0.8){ if(isToxic2){ e.poisoned=Math.max(e.poisoned,5); e.poisonDPS=Math.max(e.poisonDPS,10+cell.atkLvl); } else{ e.burning=Math.max(e.burning,4); e.burnDPS=Math.max(e.burnDPS,8+cell.atkLvl*1.5); } e.takeDamage(dmg*0.8, isToxic2?'poison':'fire',row,col); } } // 半圆范围伤害
-                    const halfRange=CELL_SIZE*3; for(const e of enemies.slice()){ if(!e.alive)continue; const d2=Math.hypot(e.x-tx,e.y-ty); if(d2<halfRange){ const ang2=Math.atan2(e.y-ty,e.x-tx); const dirAng=Math.atan2(dir[0],dir[1]); let diff=Math.abs(ang2-dirAng); if(diff>Math.PI)diff=2*Math.PI-diff; if(diff<Math.PI/2){ e.takeDamage(dmg*0.5, isToxic2?'poison':'fire',row,col); if(isToxic2)e.poisoned=Math.max(e.poisoned,3); else e.burning=Math.max(e.burning,2); } } } projectiles.push({type:isToxic2?'toxicStream':'fireStream',sx:tx,sy:ty,ex:ex3,ey:ey3,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.25);ctx.save();ctx.strokeStyle=isToxic2?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.6;ctx.shadowColor=isToxic2?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } break; }
-            case'tesla': { const range=towerRange('tesla',cell)*CELL_SIZE; let best=null,bestD=Infinity; for(const e of enemies.slice()){ if(!e.alive)continue; const d=Math.hypot(e.x-tx,e.y-ty); if(d<range&&d<bestD){bestD=d;best=e;} } if(best){ best.takeDamage(dmg,'lightning',row,col); best.shocked=Math.max(best.shocked,1.5+cell.atkLvl*0.2); // 主闪电弹道(锯齿状)
+                    for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const dx2=e.x-tx, dy2=e.y-ty; const along2=dx2*dir[1]+dy2*dir[0]; const proj2=Math.abs(dx2*dir[0]-dy2*dir[1]); if(along2>0&&along2<beamLen2&&proj2<CELL_SIZE*0.8){ if(isToxic2){ e.poisoned=Math.max(e.poisoned,5); e.poisonDPS=Math.max(e.poisonDPS,10+cell.atkLvl); } else{ e.burning=Math.max(e.burning,4); e.burnDPS=Math.max(e.burnDPS,8+cell.atkLvl*1.5); } e.takeDamage(dmg*0.8, isToxic2?'poison':'fire',row,col); } } // 半圆范围伤害
+                    const halfRange=CELL_SIZE*3; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const d2=Math.hypot(e.x-tx,e.y-ty); if(d2<halfRange){ const ang2=Math.atan2(e.y-ty,e.x-tx); const dirAng=Math.atan2(dir[0],dir[1]); let diff=Math.abs(ang2-dirAng); if(diff>Math.PI)diff=2*Math.PI-diff; if(diff<Math.PI/2){ e.takeDamage(dmg*0.5, isToxic2?'poison':'fire',row,col); if(isToxic2)e.poisoned=Math.max(e.poisoned,3); else e.burning=Math.max(e.burning,2); } } } projectiles.push({type:isToxic2?'toxicStream':'fireStream',sx:tx,sy:ty,ex:ex3,ey:ey3,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.25);ctx.save();ctx.strokeStyle=isToxic2?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.6;ctx.shadowColor=isToxic2?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } break; }
+            case'tesla': { const range=towerRange('tesla',cell)*CELL_SIZE; let best=null,bestD=Infinity; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const d=Math.hypot(e.x-tx,e.y-ty); if(d<range&&d<bestD){bestD=d;best=e;} } if(best){ best.takeDamage(dmg,'lightning',row,col); best.shocked=Math.max(best.shocked,1.5+cell.atkLvl*0.2); // 主闪电弹道(锯齿状)
                     projectiles.push({type:'lightning',sx:tx,sy:ty,ex:best.x,ey:best.y,life:0.2,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.15);ctx.save();ctx.strokeStyle=`rgba(255,255,100,${0.9*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=18;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const segs=6;const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<segs;i++){const t=i/segs;const px=this.sx+dx*t+(Math.random()-0.5)*15;const py=this.sy+dy*t+(Math.random()-0.5)*15;ctx.lineTo(px,py);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(this.sx,this.sy);for(let i=1;i<segs;i++){const t=i/segs;const px=this.sx+dx*t+(Math.random()-0.5)*15;const py=this.sy+dy*t+(Math.random()-0.5)*15;ctx.lineTo(px,py);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); spawnParticles(best.x,best.y,'#ffff66',6); for(const e of enemies.slice()){ if(!e.alive||e===best)continue; if(Math.hypot(e.x-best.x,e.y-best.y)<range*0.5){ e.takeDamage(dmg*0.4,'lightning'); // 连锁闪电视觉
                             projectiles.push({type:'lightning',sx:best.x,sy:best.y,ex:e.x,ey:e.y,life:0.15,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.1);ctx.save();ctx.strokeStyle=`rgba(255,255,150,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.7)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<4;i++){const t=i/4;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*10,this.sy+dy*t+(Math.random()-0.5)*10);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); spawnParticles(e.x,e.y,'#ffff99',4); } } spawnTowerEffect(tx,ty,'#ffff66',8); } // 究极特斯拉:概率发射高压电给血量最多的怪物
-                if(isUltimateTower(cell)&&Math.random()<0.2){ let highestHP=null; for(const e of enemies.slice()){ if(!e.alive)continue; if(!highestHP||e.hp>highestHP.hp)highestHP=e; } if(highestHP){ highestHP.takeDamage(dmg*2,'lightning',row,col); highestHP.shocked=Math.max(highestHP.shocked,3); projectiles.push({type:'lightning',sx:tx,sy:ty,ex:highestHP.x,ey:highestHP.y,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.25);ctx.save();ctx.strokeStyle=`rgba(255,0,255,${0.9*a})`;ctx.lineWidth=6;ctx.shadowColor='rgba(255,0,255,0.9)';ctx.shadowBlur=25;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<8;i++){const t=i/8;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*20,this.sy+dy*t+(Math.random()-0.5)*20);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); spawnParticles(highestHP.x,highestHP.y,'#ff00ff',10); } } break; }
+                if(isUltimateTower(cell)&&Math.random()<0.2){ let highestHP=null; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(!highestHP||e.hp>highestHP.hp)highestHP=e; } if(highestHP){ highestHP.takeDamage(dmg*2,'lightning',row,col); highestHP.shocked=Math.max(highestHP.shocked,3); projectiles.push({type:'lightning',sx:tx,sy:ty,ex:highestHP.x,ey:highestHP.y,life:0.3,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.25);ctx.save();ctx.strokeStyle=`rgba(255,0,255,${0.9*a})`;ctx.lineWidth=6;ctx.shadowColor='rgba(255,0,255,0.9)';ctx.shadowBlur=25;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<8;i++){const t=i/8;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*20,this.sy+dy*t+(Math.random()-0.5)*20);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); spawnParticles(highestHP.x,highestHP.y,'#ff00ff',10); } } break; }
             case'cannon': {
-                const aliveEnemies=enemies.filter(e=>e.alive&&!e.reachedEnd);
+                const aliveEnemies=enemies.filter(e=>canTargetEnemy(e)&&!e.reachedEnd);
                 if(aliveEnemies.length===0)break;
                 const target=aliveEnemies.reduce((a,b)=>(Math.hypot(b.x-tx,b.y-ty)<Math.hypot(a.x-tx,a.y-ty))?b:a);
                 if(!target)break;
@@ -648,9 +819,10 @@
                 projectiles.push({type:'cannonShot',sx:tx,sy:ty,ex:target.x,ey:target.y,life:0.2,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.15);ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.8*a})`;ctx.lineWidth=6;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.beginPath();ctx.arc(this.ex,this.ey,5+3*(1-a),0,Math.PI*2);ctx.fill();ctx.restore();}});
                 // 究极高射炮:同原来样子(直线光束全图穿透+镜子反射)
                 if(isUltimateTower(cell)){ const beamLength=Math.max(canvas.width,canvas.height)*1.5;
+                    screenShake=15;
                     const beamEndX=tx+ux*beamLength, beamEndY=ty+uy*beamLength;
                     projectiles.push({type:'beam',sx:tx,sy:ty,ex:beamEndX,ey:beamEndY,life:0.28,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const alpha=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.55*alpha})`;ctx.lineWidth=12;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=28;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,210,90,${0.75*alpha})`;ctx.lineWidth=5;ctx.shadowColor='rgba(255,200,60,0.8)';ctx.shadowBlur=14;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${alpha})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,255,0.95)';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}});
-                    for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.abs((e.x-tx)*uy-(e.y-ty)*ux)<CELL_SIZE*0.8&&(e.x-tx)*ux+(e.y-ty)*uy>0&&(e.x-tx)*ux+(e.y-ty)*uy<CELL_SIZE*40)e.takeDamage(dmg,'explosive',row,col); }
+                    for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.abs((e.x-tx)*uy-(e.y-ty)*ux)<CELL_SIZE*0.8&&(e.x-tx)*ux+(e.y-ty)*uy>0&&(e.x-tx)*ux+(e.y-ty)*uy<CELL_SIZE*40)e.takeDamage(dmg,'explosive',row,col); }
                     let closestMirror=null, closestDist=Infinity;
                     for(let mr=0;mr<ROWS;mr++)for(let mc=0;mc<COLS;mc++){
                         if(grid[mr][mc].type==='tower'&&grid[mr][mc].towerType==='mirror'){
@@ -662,25 +834,27 @@
                             }
                         }
                     }
-                    if(closestMirror){ const ref=reflectBeam(tx,ty,ux,uy,closestMirror.x,closestMirror.y); if(ref){ projectiles.push({type:'beam',sx:ref.sx,sy:ref.sy,ex:ref.ex,ey:ref.ey,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const alpha=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(100,200,255,${0.5*alpha})`;ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.abs((e.x-ref.sx)*(ref.ey-ref.sy)-(e.y-ref.sy)*(ref.ex-ref.sx))<CELL_SIZE*0.8&&(e.x-ref.sx)*(ref.ex-ref.sx)+(e.y-ref.sy)*(ref.ey-ref.sy)>0)e.takeDamage(dmg*0.8,'explosive'); } } }
+                    if(closestMirror){ const ref=reflectBeam(tx,ty,ux,uy,closestMirror.x,closestMirror.y); if(ref){ projectiles.push({type:'beam',sx:ref.sx,sy:ref.sy,ex:ref.ex,ey:ref.ey,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const alpha=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(100,200,255,${0.5*alpha})`;ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.abs((e.x-ref.sx)*(ref.ey-ref.sy)-(e.y-ref.sy)*(ref.ex-ref.sx))<CELL_SIZE*0.8&&(e.x-ref.sx)*(ref.ex-ref.sx)+(e.y-ref.sy)*(ref.ey-ref.sy)>0)e.takeDamage(dmg*0.8,'explosive'); } } }
                 }
                 break;
             }
             case'nuke': { // 修复:目标存活 + 粒子偏移
-                const aliveEnemies=enemies.filter(e=>e.alive&&!e.reachedEnd);
+                const aliveEnemies=enemies.filter(e=>canTargetEnemy(e)&&!e.reachedEnd);
                 if(aliveEnemies.length===0)break;
                 const target=aliveEnemies.reduce((a,b)=>(Math.hypot(b.x-tx,b.y-ty)<Math.hypot(a.x-tx,a.y-ty))?b:a);
                 if(!target)break; const nukeX=target.x, nukeY=target.y;
                 for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){ const nx=Math.floor(nukeX/CELL_SIZE)+dc, ny=Math.floor(nukeY/CELL_SIZE)+dr; if(nx>=0&&nx<COLS&&ny>=0&&ny<ROWS)spawnParticles(nx*CELL_SIZE+12,ny*CELL_SIZE+12,'#ff6600',15); }
-                for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-nukeX,e.y-nukeY)<CELL_SIZE*2.5){ e.takeDamage(dmg,'fire',row,col); e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,15+cell.atkLvl*2); } }
+                for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-nukeX,e.y-nukeY)<CELL_SIZE*2.5){ e.takeDamage(dmg,'fire',row,col); e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,15+cell.atkLvl*2); } }
                 spawnParticles(nukeX,nukeY,'#ff3300',40);
+                screenShake=25;
                 // 究极核弹井:概率连发
-                if(isUltimateTower(cell)&&Math.random()<0.3){ for(let i=0;i<2;i++){ const targets2=enemies.filter(e=>e.alive&&!e.reachedEnd); if(targets2.length===0)break; const t2=targets2[Math.floor(Math.random()*targets2.length)]; const nx2=t2.x, ny2=t2.y; for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-nx2,e.y-ny2)<CELL_SIZE*2.5){ e.takeDamage(dmg*0.7,'fire',row,col); e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,15+cell.atkLvl*2); } } spawnParticles(nx2,ny2,'#ff6600',30); } }
+                if(isUltimateTower(cell)&&Math.random()<0.3){ for(let i=0;i<2;i++){ const targets2=enemies.filter(e=>canTargetEnemy(e)&&!e.reachedEnd); if(targets2.length===0)break; const t2=targets2[Math.floor(Math.random()*targets2.length)]; const nx2=t2.x, ny2=t2.y; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-nx2,e.y-ny2)<CELL_SIZE*2.5){ e.takeDamage(dmg*0.7,'fire',row,col); e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,15+cell.atkLvl*2); } } spawnParticles(nx2,ny2,'#ff6600',30); } }
                 break; }
-            case'potion': { const range=towerRange('potion',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ const r=Math.random(); if(r<0.25){ e.slowed=Math.max(e.slowed,4); e.slowAmount=Math.max(e.slowAmount,0.6); } else if(r<0.5){ e.poisoned=Math.max(e.poisoned,5); e.poisonDPS=Math.max(e.poisonDPS,8); e.poisonStacks=Math.min(5,(e.poisonStacks||0)+2); } else if(r<0.75){ e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,10); } else{ e.frozen=Math.max(e.frozen,2); } e.takeDamage(dmg,'poison',row,col); hit=true; spawnParticles(e.x,e.y,'#cc44ff',4); } } if(hit){ spawnTowerEffect(tx,ty,'#cc44ff',6); // 药水飞溅特效:紫色扩散光环
+            case'potion': { const range=towerRange('potion',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ const r=Math.random(); if(r<0.25){ e.slowed=Math.max(e.slowed,4); e.slowAmount=Math.max(e.slowAmount,0.6); } else if(r<0.5){ e.poisoned=Math.max(e.poisoned,5); e.poisonDPS=Math.max(e.poisonDPS,8); e.poisonStacks=Math.min(5,(e.poisonStacks||0)+2); } else if(r<0.75){ e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,10); } else{ e.frozen=Math.max(e.frozen,2); } e.takeDamage(dmg,'poison',row,col); hit=true; spawnParticles(e.x,e.y,'#cc44ff',4); } } if(hit){ spawnTowerEffect(tx,ty,'#cc44ff',6); // 药水飞溅特效:紫色扩散光环
                     projectiles.push({type:'potionSplash',x:tx,y:ty,r:range,life:0.5,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.4);const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.fill();ctx.restore();}}); for(let i=0;i<10;i++){const ang=Math.random()*Math.PI*2;particles.push({x:tx,y:ty,vx:Math.cos(ang)*80,vy:Math.sin(ang)*80,life:0.6,maxLife:0.6,color:['#cc44ff','#ff44aa','#44ddff'][Math.floor(Math.random()*3)],size:3+Math.random()*2});} } // 究极药水塔:概率发射到远处
-                if(isUltimateTower(cell)&&Math.random()<0.2){ const farTargets=enemies.filter(e=>e.alive&&!e.reachedEnd&&Math.hypot(e.x-tx,e.y-ty)>range); if(farTargets.length>0){ const ft=farTargets[Math.floor(Math.random()*farTargets.length)]; const r2=Math.random(); if(r2<0.25){ ft.slowed=Math.max(ft.slowed,4); ft.slowAmount=Math.max(ft.slowAmount,0.6); } else if(r2<0.5){ ft.poisoned=Math.max(ft.poisoned,5); ft.poisonDPS=Math.max(ft.poisonDPS,8); } else if(r2<0.75){ ft.burning=Math.max(ft.burning,3); ft.burnDPS=Math.max(ft.burnDPS,10); } else{ ft.frozen=Math.max(ft.frozen,2); } ft.takeDamage(dmg*1.5,'poison',row,col); spawnParticles(ft.x,ft.y,'#cc44ff',8); projectiles.push({type:'potionSplash',x:ft.x,y:ft.y,r:range*0.5,life:0.5,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.4);const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.fill();ctx.restore();}}); } } break; }
-            case'storm': { const range=towerRange('storm',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!e.alive)continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ const dx=e.x-tx, dy=e.y-ty, dist=Math.hypot(dx,dy)||1;
+                if(isUltimateTower(cell)&&Math.random()<0.2){ const farTargets=enemies.filter(e=>canTargetEnemy(e)&&!e.reachedEnd&&Math.hypot(e.x-tx,e.y-ty)>range); if(farTargets.length>0){ const ft=farTargets[Math.floor(Math.random()*farTargets.length)]; const r2=Math.random(); if(r2<0.25){ ft.slowed=Math.max(ft.slowed,4); ft.slowAmount=Math.max(ft.slowAmount,0.6); } else if(r2<0.5){ ft.poisoned=Math.max(ft.poisoned,5); ft.poisonDPS=Math.max(ft.poisonDPS,8); } else if(r2<0.75){ ft.burning=Math.max(ft.burning,3); ft.burnDPS=Math.max(ft.burnDPS,10); } else{ ft.frozen=Math.max(ft.frozen,2); } ft.takeDamage(dmg*1.5,'poison',row,col); spawnParticles(ft.x,ft.y,'#cc44ff',8); projectiles.push({type:'potionSplash',x:ft.x,y:ft.y,r:range*0.5,life:0.5,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.4);const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.fill();ctx.restore();}}); } } break; }
+            case'fan': { const dir=cell.towerDirection||[0,1]; const frange=8; const beamLen=frange*CELL_SIZE; let hasWater=false,hasIce=false; for(let step=1;step<=frange;step++){ const fr=row+dir[0]*step, fc=col+dir[1]*step; if(fr<0||fr>=ROWS||fc<0||fc>=COLS)break; const fc2=grid[fr][fc]; if(fc2.type==='obstacle'&&fc2.obstacleType==='water')hasWater=true; if(fc2.type==='tower'&&fc2.towerType==='ice')hasIce=true; } let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const dx=e.x-tx, dy=e.y-ty; const along=dx*dir[1]+dy*dir[0]; const perp=Math.abs(dx*dir[0]-dy*dir[1]); if(along>0&&along<beamLen&&perp<CELL_SIZE*0.7){ e.takeDamage(dmg,'physical',row,col); const d=Math.hypot(dx,dy)||1; const kb=CELL_SIZE*2; if(e.straightToBase){ e.subX=e.x-(dx/d)*kb; e.subY=e.y-(dy/d)*kb; e.x=e.subX; e.y=e.subY; } else { e.pathIndex=Math.max(1,e.pathIndex-2); if(e.pathIndex<pathOrder.length){ e.subX=pathOrder[e.pathIndex][1]*CELL_SIZE+12; e.subY=pathOrder[e.pathIndex][0]*CELL_SIZE+12; } e.x=e.subX; e.y=e.subY; } if(hasWater){ e.wet=Math.max(e.wet||0,3); e.slowed=Math.max(e.slowed||0,3); e.slowAmount=Math.max(e.slowAmount||0,0.4); } if(hasIce){ e.frozen=Math.max(e.frozen||0,2); } hit=true; } } if(hit){ spawnTowerEffect(tx,ty,'#88eeff',6); projectiles.push({type:'fanBeam',sx:tx,sy:ty,ex:tx+dir[1]*beamLen,ey:ty+dir[0]*beamLen,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(150,230,255,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.4;ctx.shadowColor='rgba(150,230,255,0.7)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } break; }
+            case'storm': { const range=towerRange('storm',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ const dx=e.x-tx, dy=e.y-ty, dist=Math.hypot(dx,dy)||1;
                 // 修复:四面楚歌模式(straightToBase)敌人击退沿反方向后退,不走pathOrder
                 if(e.straightToBase){
                     const knockbackDist=CELL_SIZE*1.5;
@@ -707,7 +881,9 @@
         if(wn%50===0) base.push({type:'boss_jiawei',count:1,level:Math.min(MAX_LEVEL,wn+20),interval:0.1});
         if(wn%35===0) base.push({type:'boss_bomber',count:1,level:Math.min(MAX_LEVEL,wn+18),interval:0.1});
         if(wn%20===0) base.push({type:'boss',count:1,level:Math.min(MAX_LEVEL,wn+15),interval:0.1});
-        if(globalPenalties.extraBossChance>0 && Math.random()<globalPenalties.extraBossChance*0.1) base.push({type:'boss',count:1,level:Math.min(MAX_LEVEL,wn+10),interval:2.0});
+        if(wn%45===0) base.push({type:'boss_dancer',count:1,level:Math.min(MAX_LEVEL,wn+18),interval:0.1});
+        if(wn%25===0) base.push({type:'boss_scholar',count:1,level:Math.min(MAX_LEVEL,wn+12),interval:0.1});
+        if(globalPenalties.extraBossChance>0 && Math.random()<globalPenalties.extraBossChance) base.push({type:'boss',count:doubleBoss?2:1,level:Math.min(MAX_LEVEL,wn+10),interval:2.0});
         if(wn>=15){ const ults=['ultimate_zombie','ultimate_slime','ultimate_runner','ultimate_flesh','ultimate_ghost','ultimate_drone','ultimate_airship','ultimate_healer','ultimate_shocker','ultimate_tank','ultimate_thief','ultimate_summoner']; base.push({type:ults[Math.floor(Math.random()*ults.length)],count:Math.floor((Math.min(2,1+Math.floor((wn-15)/5)))*mult),level:Math.min(MAX_LEVEL,wn+8),interval:4.0*intervalMult}); }
         if(wn>=6){ const news=['thief','summoner','splitter','shielder','teleporter','reflector']; const newsCount=Math.floor((1+Math.floor((wn-6)/3))*mult); for(let i=0;i<newsCount;i++){ base.push({type:news[i%news.length],count:1,level:Math.min(MAX_LEVEL,wn+5),interval:2.5*intervalMult}); } }
         // 修复:双倍下一波
@@ -716,14 +892,21 @@
     }
     function startNextWave(){ waveNumber++; waveActive=true; waveBreakTimer=0; const p=getWavePattern(waveNumber); waveSpawnQueue=[]; for(const g of p){ for(let i=0;i<g.count;i++)waveSpawnQueue.push({type:g.type,level:g.level,spawnDelay:i*g.interval}); } waveSpawnQueue.sort((a,b)=>a.spawnDelay-b.spawnDelay); waveSpawnTimer=0; if(!randomBoxMode){ for(const g of p){ if(!unlockedEnemyTypes.has(g.type)){ unlockedEnemyTypes.add(g.type); pendingEnemyIntro={type:g.type,level:g.level}; } } if(pendingEnemyIntro){ showEnemyIntro(pendingEnemyIntro.type,pendingEnemyIntro.level); introPause=true; } } updateUI(); }
     function processWaveSpawning(dt){ if(!waveActive||introPause||bossSelectionPause)return; waveSpawnTimer+=dt; while(waveSpawnQueue.length&&waveSpawnQueue[0].spawnDelay<=waveSpawnTimer){ const s=waveSpawnQueue.shift(); const type=randomBoxMode?'_blindbox':s.type; enemies.push(new Enemy(type,s.level)); } if(waveSpawnQueue.length===0&&enemies.filter(e=>e.alive&&!e.reachedEnd).length===0&&waveActive)endWave(); }
-    function endWave(){ waveActive=false; waveBreakTimer=waveBreakDuration; let pts = Math.floor((waveNumber*20+30)*(1-globalPenalties.pointReduction*0.1)); clampPoints(pts); updateUI(); }
+    function endWave(){ waveActive=false; waveBreakTimer=waveBreakDuration; let pts = Math.floor((waveNumber*20+30)*Math.max(0,1-globalPenalties.pointReduction*0.15)); clampPoints(pts); // 天气效果轮次递减(2轮后消失)
+        if(weatherWavesLeft>0){ weatherWavesLeft--; if(weatherWavesLeft<=0) weatherType=null; }
+        // 包租婆:每轮扣50金币,不够则扣血
+        if(landlordActive && !devMode){ if(points>=50){ points-=50; } else { damageBase(30,'包租婆'); } }
+        updateUI();
+        // 南京条约:每轮结束后都要选择惩罚
+        if(nanjingTreaty && !bossSelectionPause){ showBossPenaltySelection(); }
+    }
     function processWaveBreak(dt){ if(waveActive||bossSelectionPause)return; if(waveBreakTimer>0){ waveBreakTimer-=dt; if(waveBreakTimer<=0){waveBreakTimer=0; startNextWave();} } }
     function skipWaveBreak(){ if(gamePhase==='defense'&&!waveActive&&waveBreakTimer>0&&!bossSelectionPause)waveBreakTimer=0.01; }
     function toggleQuickUpgrade(){ quickUpgradeMode=!quickUpgradeMode; document.getElementById('btn-quick-upgrade').classList.toggle('active-mode',quickUpgradeMode); }
-    let operationMode='normal'; // 'normal','upgrade','sacrifice'
-    const OPERATION_MODES=['normal','upgrade','sacrifice'];
-    const OPERATION_LABELS={normal:'🖱️普通',upgrade:'🔧升级',sacrifice:'💥献祭'};
-    function cycleOperationMode(){ const idx=OPERATION_MODES.indexOf(operationMode); const next=OPERATION_MODES[(idx+1)%3]; setOperationMode(next); }
+    let operationMode='normal'; // 'normal','upgrade','sacrifice','remove'
+    const OPERATION_MODES=['normal','upgrade','sacrifice','remove'];
+    const OPERATION_LABELS={normal:'🖱️普通',upgrade:'🔧升级',sacrifice:'💥献祭',remove:'🗑️铲除'};
+    function cycleOperationMode(){ const idx=OPERATION_MODES.indexOf(operationMode); const next=OPERATION_MODES[(idx+1)%4]; setOperationMode(next); }
     function setOperationMode(mode){ operationMode=mode; quickUpgradeMode=(mode==='upgrade'); const btn=document.getElementById('btn-operation'); if(btn){ btn.innerHTML=OPERATION_LABELS[mode]; btn.classList.toggle('active-mode',mode!=='normal'); } }
 
     let lastTime=performance.now();
@@ -773,14 +956,16 @@
                     for(const a of allies)a.update(dt); allies=allies.filter(a=>a.alive);
                     for(const p of projectiles)p.update(dt); projectiles=projectiles.filter(p=>p.alive);
                     for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
-                    // 修复:每5波结束后强制暂停回到布阵阶段,不依赖怪物清空条件
-                    if(!waveActive&&waveBreakTimer<=0&&waveNumber>0&&waveNumber%5===0&&waveNumber>fortressWaveCounter){
+                    // 修复:每10波结束后强制暂停回到布阵阶段,不依赖怪物清空条件
+                    if(!waveActive&&waveBreakTimer<=0&&waveNumber>0&&waveNumber%10===0&&waveNumber>fortressWaveCounter){
                         fortressWaveCounter=waveNumber;
                         // 清空所有敌人,防止积累
                         enemies=[]; projectiles=[]; particles=[];
                         points+=500+waveNumber*50; if(points>MAX_POINTS)points=MAX_POINTS; crystals+=50; if(crystals>MAX_CRYSTALS)crystals=MAX_CRYSTALS;
                         fortressPhase='digging'; gamePhase='digging'; seasonWaveTime=0; waveNumber++;
-                        alert(`🏆 第${fortressWaveCounter}波防守完成！\n获得奖励: ${500+fortressWaveCounter*50}金币 + 50水晶\n点击基地继续防守下一波`);
+                        // 弹出词条选择
+                        setTimeout(()=>showAffixSelection(),100);
+                        alert(`🏆 第${fortressWaveCounter}波防守完成！\n获得奖励: ${500+fortressWaveCounter*50}金币 + 50水晶\n请选择词条强化！`);
                     }
                 }
             }
@@ -795,22 +980,25 @@
             for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
         } updateUI(); render(); requestAnimationFrame(gameLoop); }
 
-    function drawTowerRange(cell,row,col){ if(cell.towerType==='mirror'||cell.towerType==='wireNet')return; const tx=col*CELL_SIZE+12, ty=row*CELL_SIZE+12; const type=cell.towerType; ctx.save(); ctx.globalAlpha=0.45; ctx.setLineDash([6,4]); ctx.lineWidth=2; switch(type){ case'arrow': ctx.strokeStyle='rgba(255,255,180,0.7)'; ctx.beginPath(); ctx.moveTo(tx,0); ctx.lineTo(tx,canvas.height); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(canvas.width,ty); ctx.stroke(); break; case'ice': case'tesla': case'potion': case'storm': case'dynamite': case'iceBomb': { const range=towerEffectiveRange(type,cell.rangeLvl)*CELL_SIZE; ctx.strokeStyle='rgba(120,200,255,0.7)'; ctx.beginPath(); ctx.arc(tx,ty,range,0,Math.PI*2); ctx.fill(); ctx.stroke(); break; } case'fire': case'toxic': { const dir=cell.towerDirection||[0,1]; const angle=Math.atan2(dir[0],dir[1]); const len=towerEffectiveRange(type,cell.rangeLvl)*CELL_SIZE; const halfAngle=Math.PI/5; ctx.strokeStyle='rgba(255,100,40,0.7)'; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.arc(tx,ty,len,angle-halfAngle,angle+halfAngle); ctx.closePath(); ctx.fill(); ctx.stroke(); break; } case'cannon':{ // 修复:指示线指向最近敌人,无敌人时水平
-        const alive=enemies.filter(e=>e.alive&&!e.reachedEnd); let aimX=tx+CELL_SIZE*30,aimY=ty;
+    function drawTowerRange(cell,row,col){ if(cell.towerType==='mirror'||cell.towerType==='wireNet'||cell.towerType==='weather')return; const tx=col*CELL_SIZE+12, ty=row*CELL_SIZE+12; const type=cell.towerType; ctx.save(); ctx.globalAlpha=0.45; ctx.setLineDash([6,4]); ctx.lineWidth=2; switch(type){ case'arrow': ctx.strokeStyle='rgba(255,255,180,0.7)'; ctx.beginPath(); ctx.moveTo(tx,0); ctx.lineTo(tx,canvas.height); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(canvas.width,ty); ctx.stroke(); break; case'ice': case'tesla': case'potion': case'storm': case'dynamite': case'iceBomb': { const range=towerEffectiveRange(type,cell.rangeLvl)*CELL_SIZE; ctx.strokeStyle='rgba(120,200,255,0.7)'; ctx.beginPath(); ctx.arc(tx,ty,range,0,Math.PI*2); ctx.fill(); ctx.stroke(); break; } case'fire': case'toxic': case'fan': { const dir=cell.towerDirection||[0,1]; const angle=Math.atan2(dir[0],dir[1]); const len=towerEffectiveRange(type,cell.rangeLvl)*CELL_SIZE; const halfAngle=Math.PI/5; ctx.strokeStyle='rgba(255,100,40,0.7)'; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.arc(tx,ty,len,angle-halfAngle,angle+halfAngle); ctx.closePath(); ctx.fill(); ctx.stroke(); break; } case'lamp': { const range=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE; ctx.strokeStyle='rgba(255,230,120,0.7)'; ctx.beginPath(); ctx.arc(tx,ty,range,0,Math.PI*2); ctx.fill(); ctx.stroke(); break; } case'cannon':{ // 修复:指示线指向最近敌人,无敌人时水平
+        const alive=enemies.filter(e=>canTargetEnemy(e)&&!e.reachedEnd); let aimX=tx+CELL_SIZE*30,aimY=ty;
         if(alive.length>0){ const t=alive.reduce((a,b)=>(Math.hypot(b.x-tx,b.y-ty)<Math.hypot(a.x-tx,a.y-ty))?b:a); aimX=t.x; aimY=t.y; }
         ctx.strokeStyle='rgba(255,150,50,0.55)'; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(aimX,aimY); ctx.stroke(); break; } case'nuke':{ const range=CELL_SIZE*2.5; ctx.strokeStyle='rgba(255,60,60,0.65)'; ctx.beginPath(); ctx.arc(tx,ty,range,0,Math.PI*2); ctx.fill(); ctx.stroke(); break; } } ctx.restore(); }
     function render(){
         ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=TC.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(screenShake>0){ ctx.save(); ctx.translate((Math.random()-0.5)*screenShake,(Math.random()-0.5)*screenShake); screenShake*=0.9; if(screenShake<0.5)screenShake=0; }
         for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c], x=c*CELL_SIZE, y=r*CELL_SIZE; if(cell.type==='obstacle'){ if(cell.obstacleType==='water'){ const t=Date.now()*0.003; ctx.fillStyle=TC.obstacle; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.save(); ctx.strokeStyle=`rgba(100,180,255,${0.3+0.2*Math.sin(t)})`; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(x+12,y+12,4+3*Math.sin(t),0,Math.PI*2); ctx.stroke(); ctx.strokeStyle=`rgba(150,200,255,${0.2+0.15*Math.sin(t+1)})`; ctx.beginPath(); ctx.arc(x+12,y+12,8+2*Math.sin(t+0.5),0,Math.PI*2); ctx.stroke(); ctx.restore(); ctx.fillStyle='#bbeeff'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('💧',x+12,y+16); } else if(cell.obstacleType==='lava'){ ctx.fillStyle=TC.obstacle; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.save(); ctx.fillStyle=`rgba(255,80,0,${0.2+0.1*Math.sin(Date.now()*0.005)})`; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.restore(); ctx.fillStyle='#ff8844'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('🌋',x+12,y+16); } else { ctx.fillStyle=TC.obstacle; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle='#ddd'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText(OBSTACLE_TYPES[cell.obstacleType]?.icon||'?',x+12,y+16); } if(cell.obstacleOverload>0){ ctx.fillStyle='rgba(255,80,0,0.4)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } // 障碍物血条(仙人掌/拦路石/迷魂草/兵营)
-            if(cell.obstacleMaxHP>0&&cell.obstacleHP<cell.obstacleMaxHP){ const barW=CELL_SIZE-4, barH=3, barX=x+2, barY=y+CELL_SIZE-5; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barW,barH); const hpRatio=cell.obstacleHP/cell.obstacleMaxHP; ctx.fillStyle=hpRatio>0.5?'#44ff44':hpRatio>0.25?'#ffaa00':'#ff4444'; ctx.fillRect(barX,barY,barW*hpRatio,barH); } } else if(cell.type==='tower'){ ctx.fillStyle=TC.tower; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle=cell.overloadTimer>0?'#ff6644':TC.gold; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText(TOWER_TYPES[cell.towerType]?.icon||'?',x+12,y+16); if(cell.stunned>0){ ctx.fillStyle='rgba(255,255,0,0.5)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } if(cell.overloadTimer>0){ ctx.fillStyle='rgba(255,0,0,0.3)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } } else if(cell.isPath){ ctx.fillStyle=TC.path; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } else{ // 未挖开格子:海洋主题棋盘格交替颜色
+            if(cell.obstacleMaxHP>0&&cell.obstacleHP<cell.obstacleMaxHP){ const barW=CELL_SIZE-4, barH=3, barX=x+2, barY=y+CELL_SIZE-5; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barW,barH); const hpRatio=cell.obstacleHP/cell.obstacleMaxHP; ctx.fillStyle=hpRatio>0.5?'#44ff44':hpRatio>0.25?'#ffaa00':'#ff4444'; ctx.fillRect(barX,barY,barW*hpRatio,barH); } } else if(cell.type==='tower'){ ctx.fillStyle=TC.tower; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle=cell.overloadTimer>0?'#ff6644':TC.gold; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText(TOWER_TYPES[cell.towerType]?.icon||'?',x+12,y+16); if(cell.stunned>0){ ctx.fillStyle='rgba(255,255,0,0.5)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } if(cell.overloadTimer>0){ ctx.fillStyle='rgba(255,0,0,0.3)'; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } if(cell.buildingHP>0){ const barW=CELL_SIZE-4, barH=3, barX=x+2, barY=y+CELL_SIZE-5; ctx.fillStyle='#330000'; ctx.fillRect(barX,barY,barW,barH); const hpR=cell.buildingHP/100; ctx.fillStyle=hpR>0.5?'#44ff44':hpR>0.25?'#ffaa00':'#ff4444'; ctx.fillRect(barX,barY,barW*hpR,barH); } } else if(cell.isPath){ ctx.fillStyle=TC.path; ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } else{ // 未挖开格子:海洋主题棋盘格交替颜色
                 if(currentTheme==='ocean'&&TC.undig1&&TC.undig2){ ctx.fillStyle=(r+c)%2===0?TC.undig1:TC.undig2; } else { ctx.fillStyle=TC.undig||'#1e1e28'; } ctx.fillRect(x+1,y+1,CELL_SIZE-2,CELL_SIZE-2); } }
         if(gamePhase==='defense'&&selectedCell){ const cell=grid[selectedCell.row][selectedCell.col]; if(cell&&cell.type==='tower'){ drawTowerRange(cell,selectedCell.row,selectedCell.col); const sx=selectedCell.col*CELL_SIZE, sy=selectedCell.row*CELL_SIZE; ctx.strokeStyle=TC.gold; ctx.lineWidth=3; ctx.setLineDash([3,2]); ctx.strokeRect(sx+2,sy+2,CELL_SIZE-4,CELL_SIZE-4); ctx.setLineDash([]); } }
-        if(quickUpgradeMode&&selectionStartRow>=0&&selectionEndRow>=0){ const x1=Math.min(selectionStartCol,selectionEndCol)*CELL_SIZE, y1=Math.min(selectionStartRow,selectionEndRow)*CELL_SIZE; const x2=(Math.max(selectionStartCol,selectionEndCol)+1)*CELL_SIZE, y2=(Math.max(selectionStartRow,selectionEndRow)+1)*CELL_SIZE; ctx.save(); ctx.globalAlpha=0.4; ctx.fillStyle='rgba(255,160,40,0.3)'; ctx.fillRect(x1,y1,x2-x1,y2-y1); ctx.strokeStyle='#ff8800'; ctx.lineWidth=3; ctx.setLineDash([5,3]); ctx.strokeRect(x1,y1,x2-x1,y2-y1); ctx.restore(); }
+        if((quickUpgradeMode||operationMode==='sacrifice'||operationMode==='remove')&&selectionStartRow>=0&&selectionEndRow>=0){ const x1=Math.min(selectionStartCol,selectionEndCol)*CELL_SIZE, y1=Math.min(selectionStartRow,selectionEndRow)*CELL_SIZE; const x2=(Math.max(selectionStartCol,selectionEndCol)+1)*CELL_SIZE, y2=(Math.max(selectionStartRow,selectionEndRow)+1)*CELL_SIZE; ctx.save(); ctx.globalAlpha=0.4; const selColor=quickUpgradeMode?'rgba(255,160,40,0.3)':(operationMode==='sacrifice'?'rgba(255,40,40,0.3)':'rgba(255,80,80,0.3)'); const borderColor=quickUpgradeMode?'#ff8800':(operationMode==='sacrifice'?'#ff0000':'#ff4444'); ctx.fillStyle=selColor; ctx.fillRect(x1,y1,x2-x1,y2-y1); ctx.strokeStyle=borderColor; ctx.lineWidth=3; ctx.setLineDash([5,3]); ctx.strokeRect(x1,y1,x2-x1,y2-y1); ctx.restore(); }
         // 电线网持续连线渲染 - 电元素脉冲效果
         for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'&&cell.towerType==='wireNet'&&cell.wireNetPair){ const pr=cell.wireNetPair[0],pc=cell.wireNetPair[1]; const pcell=grid[pr]?.[pc]; if(pcell&&pcell.type==='tower'&&pcell.towerType==='wireNet'){ const sx=c*CELL_SIZE+12,sy=r*CELL_SIZE+12,ex=pc*CELL_SIZE+12,ey=pr*CELL_SIZE+12; const pulse=0.5+0.5*Math.sin(Date.now()*0.008); ctx.save(); ctx.strokeStyle=`rgba(100,200,255,${0.4+0.3*pulse})`; ctx.lineWidth=3; ctx.shadowColor='rgba(100,200,255,0.9)'; ctx.shadowBlur=10+8*pulse; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke(); ctx.strokeStyle=`rgba(220,240,255,${0.7+0.3*pulse})`; ctx.lineWidth=1.5; ctx.shadowColor='rgba(180,220,255,0.8)'; ctx.shadowBlur=6; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke(); // 电火花粒子
                     if(Math.random()<0.15){ const t=Math.random(); const px=sx+(ex-sx)*t, py=sy+(ey-sy)*t; spawnParticles(px,py,'#ffff88',2); } ctx.restore(); } } }
         for(const e of enemies) e.draw(ctx); for(const a of allies) a.draw(ctx); for(const p of projectiles) p.draw(ctx);
         for(const p of particles){ if(p.life<=0)continue; const alpha=p.life/p.maxLife; ctx.globalAlpha=alpha; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size||2,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
+        // 天气渲染:夜晚(仅路灯可见)与雾天(淡灰覆盖)
+        if(weatherType==='night'||weatherType==='fog'){ ctx.save(); if(weatherType==='night'){ ctx.fillStyle='rgba(5,5,25,0.82)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.globalCompositeOperation='destination-out'; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'&&cell.towerType==='lamp'){ const lx=c*CELL_SIZE+12, ly=r*CELL_SIZE+12, lr=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE; const g=ctx.createRadialGradient(lx,ly,0,lx,ly,lr); g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(0.7,'rgba(0,0,0,0.85)'); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(lx,ly,lr,0,Math.PI*2); ctx.fill(); } } } else { ctx.fillStyle='rgba(200,200,210,0.26)'; ctx.fillRect(0,0,canvas.width,canvas.height); } ctx.restore(); }
         if(bossEnemy&&bossEnemy.alive){ const barWidth=200, barHeight=18, barX=canvas.width/2-barWidth/2, barY=10; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barWidth,barHeight); const hpRatio=bossEnemy.hp/bossEnemy.maxHP; ctx.fillStyle=hpRatio>0.5?'#ff4444':hpRatio>0.25?'#ff8800':'#ff0000'; ctx.fillRect(barX,barY,barWidth*hpRatio,barHeight); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(barX,barY,barWidth,barHeight); ctx.fillStyle='#ffffff'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(`${bossEnemy.name} ${Math.floor(bossEnemy.hp)}/${bossEnemy.maxHP}`, canvas.width/2, barY+10); }
         ctx.save();
         if(gameMode==='season'&&seasonSubMode==='besieged'){ const cr=Math.floor(ROWS/2), cc=Math.floor(COLS/2); ctx.fillStyle=TC.base; ctx.fillRect(cc*CELL_SIZE+1,cr*CELL_SIZE+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle='#fff'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('基',cc*CELL_SIZE+12,cr*CELL_SIZE+12); if(seasonEntryPoints.length>0)for(const [er,ec] of seasonEntryPoints){ ctx.fillStyle=TC.entrance; ctx.fillRect(ec*CELL_SIZE+1,er*CELL_SIZE+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillText('入',ec*CELL_SIZE+12,er*CELL_SIZE+12); }
@@ -819,63 +1007,74 @@
             ctx.fillStyle=TC.base; ctx.fillRect(ec*CELL_SIZE+1,er*CELL_SIZE+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillText('基',ec*CELL_SIZE+12,er*CELL_SIZE+12);
         } else { ctx.fillStyle=TC.entrance; ctx.fillRect(START_COL*CELL_SIZE+1,START_ROW*CELL_SIZE+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillStyle='#fff'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('入',START_COL*CELL_SIZE+12,START_ROW*CELL_SIZE+12); ctx.fillStyle=TC.base; ctx.fillRect(END_COL*CELL_SIZE+1,END_ROW*CELL_SIZE+1,CELL_SIZE-2,CELL_SIZE-2); ctx.fillText('基',END_COL*CELL_SIZE+12,END_ROW*CELL_SIZE+12); }
         ctx.restore();
+        if(screenShake>0) ctx.restore();
     }
 
-    function updateUI(){ document.getElementById('info-hp').textContent=gameMode==='season'&&seasonSubMode==='experience'?'∞':Math.floor(baseHP); document.getElementById('info-points').textContent=Math.floor(points); document.getElementById('info-crystals').textContent=crystals; document.getElementById('info-phase').textContent=gameMode==='season'?SEASON_MODE_NAMES[seasonSubMode]:(gamePhase==='digging'?'挖掘':'防御'); document.getElementById('info-wave').textContent=gameMode==='season'?(seasonSubMode==='experience'?`难度${Math.floor(seasonDifficulty)}`:`第${waveNumber}波`):(gamePhase==='defense'?`第${waveNumber}波`:'准备中'); document.getElementById('info-timer').textContent=gameMode==='season'?(seasonActive?Math.floor(seasonTimer/60)+':'+String(Math.floor(seasonTimer%60)).padStart(2,'0'):'-'):(gamePhase==='defense'&&!waveActive&&waveBreakTimer>0&&!bossSelectionPause)?Math.ceil(waveBreakTimer)+'s':'-'; document.getElementById('skip-wave-btn').style.display=(gameMode!=='season'&&gamePhase==='defense'&&!waveActive&&waveBreakTimer>0&&!bossSelectionPause)?'inline-block':'none'; let buffText=''; if(bossBuffLevels.speed>0)buffText+=`💨${bossBuffLevels.speed} `; if(bossBuffLevels.health>0)buffText+=`❤️${bossBuffLevels.health} `; if(bossBuffLevels.armor>0)buffText+=`🛡️${bossBuffLevels.armor} `; if(globalPenalties.damageReduction>0)buffText+=`🛡️减伤${globalPenalties.damageReduction*5}% `; if(globalPenalties.pointReduction>0)buffText+=`💰收益-${globalPenalties.pointReduction*10}% `; if(globalPenalties.extraBossChance>0)buffText+=`👾BOSS+${globalPenalties.extraBossChance*10}% `; if(globalPenalties.corruption>0)buffText+=`🔥腐化${globalPenalties.corruption}层 `; document.getElementById('info-boss-buffs').textContent=buffText?'全局:'+buffText:''; document.getElementById('devBadge').style.display=devMode?'block':'none'; document.getElementById('btn-dev').classList.toggle('dev-active',devMode); document.getElementById('btn-back-menu').style.display=(gameMode==='season')?'inline-block':'none'; document.getElementById('saveDropdown').style.display=(gameMode==='season')?'none':'inline-block'; }
+    function updateUI(){ document.getElementById('info-hp').textContent=gameMode==='season'&&seasonSubMode==='experience'?'∞':Math.floor(baseHP); document.getElementById('info-points').textContent=Math.floor(points); document.getElementById('info-crystals').textContent=crystals; document.getElementById('info-phase').textContent=gameMode==='season'?SEASON_MODE_NAMES[seasonSubMode]:(gamePhase==='digging'?'挖掘':'防御'); document.getElementById('info-wave').textContent=gameMode==='season'?(seasonSubMode==='experience'?`难度${Math.floor(seasonDifficulty)}`:`第${waveNumber}波`):(gamePhase==='defense'?`第${waveNumber}波`:'准备中'); document.getElementById('info-timer').textContent=gameMode==='season'?(seasonActive?Math.floor(seasonTimer/60)+':'+String(Math.floor(seasonTimer%60)).padStart(2,'0'):'-'):(gamePhase==='defense'&&!waveActive&&waveBreakTimer>0&&!bossSelectionPause)?Math.ceil(waveBreakTimer)+'s':'-'; document.getElementById('skip-wave-btn').style.display=(gameMode!=='season'&&gamePhase==='defense'&&!waveActive&&waveBreakTimer>0&&!bossSelectionPause)?'inline-block':'none'; let buffText=''; if(bossBuffLevels.speed>0)buffText+=`💨${bossBuffLevels.speed} `; if(bossBuffLevels.health>0)buffText+=`❤️${bossBuffLevels.health} `; if(bossBuffLevels.armor>0)buffText+=`🛡️${bossBuffLevels.armor} `; if(globalPenalties.damageReduction>0)buffText+=`🛡️减伤${Math.round(globalPenalties.damageReduction*100)}% `; if(globalPenalties.pointReduction>0)buffText+=`💰收益-${globalPenalties.pointReduction*15}% `; if(globalPenalties.extraBossChance>0)buffText+=`👾BOSS+${Math.round(globalPenalties.extraBossChance*100)}% `; if(weatherType)buffText+=`天气${weatherType==='rain'?'🌧️雨':weatherType==='fog'?'🌫️雾':weatherType==='night'?'🌙夜':'☀️晴'}(${weatherWavesLeft}轮) `; if(globalPenalties.corruption>0)buffText+=`🔥腐化${globalPenalties.corruption}层 `; document.getElementById('info-boss-buffs').textContent=buffText?'全局:'+buffText:''; document.getElementById('devBadge').style.display=devMode?'block':'none'; document.getElementById('btn-dev').classList.toggle('dev-active',devMode); document.getElementById('btn-back-menu').style.display=(gameMode==='season')?'inline-block':'none'; document.getElementById('saveDropdown').style.display=(gameMode==='season')?'none':'inline-block'; }
 
-    function placeItem(row,col,type,category){ const cell=grid[row][col]; if(category==='tower'){ const t=TOWER_TYPES[type]; if(!t)return; if(t.isSpecial && !isTowerUnlocked(type)) return; if(t.isWireNet){ if(cell.type!=='empty'||cell.isPath)return; if(!devMode&&crystals<t.crystalCost)return; if(!devMode)crystals-=t.crystalCost; cell.type='tower'; cell.towerType='wireNet'; cell.towerLevel=1; updateUI(); return; } if(t.isMirror){ if(cell.type!=='empty'||cell.isPath)return; if(!devMode&&crystals<t.crystalCost)return; if(!devMode)crystals-=t.crystalCost; cell.type='tower'; cell.towerType='mirror'; updateUI(); return; } if(t.isOneShot){ if(cell.type!=='empty' && !cell.isPath) return; if(cell.type==='obstacle') return; } else { if(cell.type!=='empty'||cell.isPath) return; } // 双成本(黑洞):同时扣金币+钻石
-            if(t.cost>0 && t.crystalCost>0){ if(!devMode&&(points<t.cost||crystals<t.crystalCost)) return; if(!devMode){points-=t.cost;crystals-=t.crystalCost;} } else if(t.crystalCost){ if(!devMode&&crystals<t.crystalCost) return; if(!devMode)crystals-=t.crystalCost; } else if(t.cost>0){ if(!devMode&&points<t.cost) return; if(!devMode)points-=t.cost; } if(t.isOneShot){ cell.type='tower'; cell.towerType=type; cell.towerLevel=1; cell.atkLvl=0; cell.cdLvl=0; cell.rangeLvl=0; cell.overloadTimer=0; if(cell.isPath) cell.wasPath=true; } else { cell.type='tower'; cell.towerType=type; cell.towerLevel=1; cell.atkLvl=0; cell.cdLvl=0; cell.rangeLvl=0; cell.overloadTimer=0; if(type==='fire'||type==='toxic'){ const nb=getPathNeighbors(row,col); cell.towerDirection=nb.length?[nb[0][0]-row,nb[0][1]-col]:[0,1]; } } } else { if(!cell.isPath||cell.type==='obstacle'||cell.type==='tower')return; const obs=OBSTACLE_TYPES[type]; if(!obs)return; if(obs.crystalCost){ if(!devMode&&crystals<obs.crystalCost)return; if(!devMode)crystals-=obs.crystalCost; } else { const cost=obsCost(type); if(!devMode&&points<cost)return; if(!devMode)points-=cost; } cell.type='obstacle'; cell.obstacleType=type; cell.obstacleLevel=1; cell.obstacleUpgrades={}; if(obs.upgrades) for(let key in obs.upgrades) cell.obstacleUpgrades[key]=0; if(type==='stone'){ cell.obstacleMaxHP=300; cell.obstacleHP=300; } else if(type==='cactus'){ cell.obstacleMaxHP=50; cell.obstacleHP=50; } else if(type==='confusion'){ cell.obstacleMaxHP=100; cell.obstacleHP=100; } else if(type==='barracks'){ cell.obstacleMaxHP=300; cell.obstacleHP=300; } if(type==='barracks'){ showBarracksSelectMenu(row,col); } } updateUI(); }
+    function placeItem(row,col,type,category){ const cell=grid[row][col]; if(category==='tower'){ const t=TOWER_TYPES[type]; if(!t)return; if(t.isSpecial && !isTowerUnlocked(type)) return; if(techLockedTypes && techLockedTypes.has(type)) return; if(t.isWireNet){ if(!canPlantOn(row,col,type))return; if(!devMode&&crystals<t.crystalCost)return; if(!devMode)crystals-=t.crystalCost; cell.type='tower'; cell.towerType='wireNet'; cell.towerLevel=1; cell.wireNetPair=null; updateUI(); return; } if(t.isMirror){ if(cell.type!=='empty'||cell.isPath)return; if(!devMode&&crystals<t.crystalCost)return; if(!devMode)crystals-=t.crystalCost; cell.type='tower'; cell.towerType='mirror'; updateUI(); return; } if(t.requiresMaxed){ if(!canPlantOn(row,col,type))return; if(!devMode&&crystals<(t.crystalCost||0))return; if(!devMode)crystals-=(t.crystalCost||0); cell.type='tower'; cell.towerType=type; cell.towerLevel=1; cell.atkLvl=0; cell.cdLvl=0; cell.rangeLvl=0; cell.overloadTimer=0; updateUI(); return; } if(t.isOneShot){ if(cell.type!=='empty' && !cell.isPath) return; if(cell.type==='obstacle') return; } else { if(cell.type!=='empty'&&cell.type!=='path') return; } // 双成本(黑洞):同时扣金币+钻石
+            if(t.cost>0 && t.crystalCost>0){ if(!devMode&&(points<t.cost||crystals<t.crystalCost)) return; if(!devMode){points-=t.cost;crystals-=t.crystalCost;} } else if(t.crystalCost){ if(!devMode&&crystals<t.crystalCost) return; if(!devMode)crystals-=t.crystalCost; } else if(t.cost>0){ if(!devMode&&points<t.cost) return; if(!devMode)points-=t.cost; } if(t.isOneShot){ cell.type='tower'; cell.towerType=type; cell.towerLevel=1; cell.atkLvl=0; cell.cdLvl=0; cell.rangeLvl=0; cell.overloadTimer=0; if(cell.isPath) cell.wasPath=true; } else { cell.type='tower'; cell.towerType=type; cell.towerLevel=1; cell.atkLvl=0; cell.cdLvl=0; cell.rangeLvl=0; cell.overloadTimer=0; if(cell.isPath) cell.buildingHP=100; if(type==='fire'||type==='toxic'||type==='fan'){ const nb=getPathNeighbors(row,col); cell.towerDirection=nb.length?[nb[0][0]-row,nb[0][1]-col]:[0,1]; } } } else { if(!cell.isPath||cell.type==='obstacle'||cell.type==='tower')return; const obs=OBSTACLE_TYPES[type]; if(!obs)return; if(obs.crystalCost){ if(!devMode&&crystals<obs.crystalCost)return; if(!devMode)crystals-=obs.crystalCost; } else { const cost=obsCost(type); if(!devMode&&points<cost)return; if(!devMode)points-=cost; } cell.type='obstacle'; cell.obstacleType=type; cell.obstacleLevel=1; cell.obstacleUpgrades={}; if(obs.upgrades) for(let key in obs.upgrades) cell.obstacleUpgrades[key]=0; if(type==='stone'){ cell.obstacleMaxHP=300; cell.obstacleHP=300; } else if(type==='cactus'){ cell.obstacleMaxHP=50; cell.obstacleHP=50; } else if(type==='confusion'){ cell.obstacleMaxHP=100; cell.obstacleHP=100; } else if(type==='barracks'){ cell.obstacleMaxHP=300; cell.obstacleHP=300; } if(type==='barracks'){ showBarracksSelectMenu(row,col); } } updateUI(); }
     function obsCost(t){ return OBSTACLE_TYPES[t]?.cost||8; }
     function towerCostHtml(td){ let h=''; if(td.cost>0)h+=`<span class="cost">${td.cost}pt</span>`; if(td.crystalCost)h+=`<span class="crystal-cost">💎${td.crystalCost}</span>`; return h||'<span class="cost">免费</span>'; }
-    function quickUpgradeInRect(r1,c1,r2,c2){ const minR=Math.min(r1,r2), maxR=Math.max(r1,r2); const minC=Math.min(c1,c2), maxC=Math.max(c1,c2); let totalCost=0, totalCrystal=0, upgraded=0; for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ const t=TOWER_TYPES[cell.towerType]; if(!t||t.noUpgrade||t.isOneShot||t.isMirror||t.isWireNet)continue; if(t.fields){ if(cell.atkLvl<MAX_TOWER_LVL){ if(cell.atkLvl>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.atkLvl); else totalCost+=Math.floor((cell.atkLvl+1)*8+10); } if(cell.cdLvl<MAX_TOWER_LVL){ if(cell.cdLvl>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.cdLvl); else totalCost+=Math.floor((cell.cdLvl+1)*8+10); } if(t.rangePerLvl>0&&cell.rangeLvl<MAX_TOWER_LVL){ if(cell.rangeLvl>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.rangeLvl); else totalCost+=Math.floor((cell.rangeLvl+1)*8+10); } } else if(cell.towerLevel<MAX_TOWER_LVL){ if(gameMode==='season'&&seasonSubMode==='fortress'&&cell.towerLevel>=((cell.isPath||cell.wasPath)?20:15))continue; if(cell.towerLevel>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.towerLevel); else totalCost+=Math.floor((cell.towerLevel+1)*8+10); } } } if(totalCost===0&&totalCrystal===0)return; if(!devMode&&points<totalCost){ alert(`点数不足！需要${totalCost}pt`); return; } if(!devMode&&crystals<totalCrystal){ alert(`水晶不足！需要💎${totalCrystal}`); return; } if(!devMode){ points-=totalCost; crystals-=totalCrystal; } for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ const t=TOWER_TYPES[cell.towerType]; if(!t||t.noUpgrade||t.isOneShot||t.isMirror||t.isWireNet)continue; if(t.fields){ if(cell.atkLvl<MAX_TOWER_LVL){ cell.atkLvl++; upgraded++; } if(cell.cdLvl<MAX_TOWER_LVL){ cell.cdLvl++; upgraded++; } if(t.rangePerLvl>0&&cell.rangeLvl<MAX_TOWER_LVL){ cell.rangeLvl++; upgraded++; } } else if(cell.towerLevel<MAX_TOWER_LVL){ if(gameMode==='season'&&seasonSubMode==='fortress'&&cell.towerLevel>=((cell.isPath||cell.wasPath)?20:15))continue; cell.towerLevel++; upgraded++; } } } alert(`✅ 升级${upgraded}项，花费${totalCost}pt+💎${totalCrystal}`); updateUI(); }
+    function quickUpgradeInRect(r1,c1,r2,c2){ const minR=Math.min(r1,r2), maxR=Math.max(r1,r2); const minC=Math.min(c1,c2), maxC=Math.max(c1,c2); let totalCost=0, totalCrystal=0, upgraded=0; for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ const t=TOWER_TYPES[cell.towerType]; if(!t||t.noUpgrade||t.isOneShot||t.isMirror||t.isWireNet)continue; if(t.fields){ if(cell.atkLvl<MAX_TOWER_LVL){ if(cell.atkLvl>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.atkLvl); else totalCost+=Math.floor((cell.atkLvl+1)*8+10); } if(cell.cdLvl<MAX_TOWER_LVL){ if(cell.cdLvl>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.cdLvl); else totalCost+=Math.floor((cell.cdLvl+1)*8+10); } if(t.rangePerLvl>0&&cell.rangeLvl<MAX_TOWER_LVL){ if(cell.rangeLvl>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.rangeLvl); else totalCost+=Math.floor((cell.rangeLvl+1)*8+10); } } else if(cell.towerLevel<(TOWER_TYPES[cell.towerType].maxLvl||MAX_TOWER_LVL)){ if(gameMode==='season'&&seasonSubMode==='fortress'&&cell.towerLevel>=((cell.isPath||cell.wasPath)?20:15))continue; if(cell.towerLevel>=ULTIMATE_THRESHOLD)totalCrystal+=crystalCostForLevel(cell.towerLevel); else totalCost+=Math.floor((cell.towerLevel+1)*8+10); } } } if(totalCost===0&&totalCrystal===0)return; if(!devMode&&points<totalCost){ alert(`点数不足！需要${totalCost}pt`); return; } if(!devMode&&crystals<totalCrystal){ alert(`水晶不足！需要💎${totalCrystal}`); return; } if(!devMode){ points-=totalCost; crystals-=totalCrystal; } for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ const t=TOWER_TYPES[cell.towerType]; if(!t||t.noUpgrade||t.isOneShot||t.isMirror||t.isWireNet)continue; if(t.fields){ if(cell.atkLvl<MAX_TOWER_LVL){ cell.atkLvl++; upgraded++; } if(cell.cdLvl<MAX_TOWER_LVL){ cell.cdLvl++; upgraded++; } if(t.rangePerLvl>0&&cell.rangeLvl<MAX_TOWER_LVL){ cell.rangeLvl++; upgraded++; } } else if(cell.towerLevel<(TOWER_TYPES[cell.towerType].maxLvl||MAX_TOWER_LVL)){ if(gameMode==='season'&&seasonSubMode==='fortress'&&cell.towerLevel>=((cell.isPath||cell.wasPath)?20:15))continue; cell.towerLevel++; upgraded++; } } } alert(`✅ 升级${upgraded}项，花费${totalCost}pt+💎${totalCrystal}`); updateUI(); }
+    function quickSacrificeInRect(r1,c1,r2,c2){ const minR=Math.min(r1,r2), maxR=Math.max(r1,r2); const minC=Math.min(c1,c2), maxC=Math.max(c1,c2); const showSacrifice=devMode||(gameMode==='season')||(waveNumber>=5); if(!showSacrifice){ alert('普通模式献祭功能在第5波解锁'); return; } let totalCost=0, sacrificed=0; for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ const sacRefund=getSacrificeRefund(r,c); totalCost+=sacRefund; } } if(totalCost===0)return; if(!devMode&&points<totalCost){ alert(`点数不足！献祭需要消耗${totalCost}pt`); return; } for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ clampPoints(-getSacrificeRefund(r,c),true); cell.overloadTimer=15; sacrificed++; } } alert(`✅ 献祭${sacrificed}座炮塔，消耗${totalCost}pt`); updateUI(); }
+    function quickRemoveInRect(r1,c1,r2,c2){ const minR=Math.min(r1,r2), maxR=Math.max(r1,r2); const minC=Math.min(c1,c2), maxC=Math.max(c1,c2); let totalRefund=0, removed=0; for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ totalRefund+=getTowerRefund(r,c); } } if(totalRefund===0)return; for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){ const cell=grid[r][c]; if(cell.type==='tower'){ points+=getTowerRefund(r,c); cell.type='empty'; cell.towerType=null; removed++; } } alert(`✅ 铲除${removed}座炮塔，获得${totalRefund}pt`); updateUI(); }
     function showBossPenaltySelection(count=5){ if(gameMode==='season'&&seasonSubMode==='random')return; // 超级随机:无词条
         if(gameMode==='season'&&seasonSubMode==='experience')return; // 经验模式:无词条
         if(gameMode==='season'&&seasonSubMode==='fortress')return; // 坚不可摧:无词条
         bossSelectionPause=true;
-        const penalties=[
-            {icon:'💨',name:'风驰电掣',desc:'所有敌人速度永久+12%',apply:()=>{bossBuffLevels.speed++;}},
-            {icon:'❤️',name:'生机勃勃',desc:'所有敌人生命值永久+25%',apply:()=>{bossBuffLevels.health++;}},
-            {icon:'🛡️',name:'铜墙铁壁',desc:'所有敌人护甲永久+3',apply:()=>{bossBuffLevels.armor++;}},
-            {icon:'💥',name:'断壁残垣',desc:'随机摧毁1/3炮塔',apply:()=>{destroyRandomTowers(0.33);}},
-            {icon:'💰',name:'囊中羞涩',desc:'损失当前点数的30%',apply:()=>{if(!devMode){points=Math.floor(points*0.7);updateUI();}}},
-            {icon:'⚡',name:'天旋地转',desc:'所有炮塔眩晕7秒',apply:()=>{stunAllTowers(7);}},
-            {icon:'🌀',name:'兵临城下',desc:'传送4个敌人到基地旁',apply:()=>{teleportEnemiesNearBase(4);}},
-            {icon:'🩸',name:'生灵涂炭',desc:'基地损失30点生命',apply:()=>{damageBase(30,'Boss惩罚');}},
-            {icon:'🕒',name:'度日如年',desc:'波次间隔+15秒',apply:()=>{waveBreakDuration+=15;}},
-            {icon:'💎',name:'宝石流失',desc:'失去所有水晶',apply:()=>{if(!devMode)crystals=0;}},
-            {icon:'📉',name:'降级打击',desc:'随机7座炮塔降1级',apply:()=>{downgradeRandomTowers(7);}},
-            {icon:'🔥',name:'基地灼烧',desc:'基地每秒损失3点生命持续20秒',apply:()=>{startBaseBurn(20);}},
-            {icon:'👾',name:'敌潮汹涌',desc:'下一波敌人数量翻倍',apply:()=>{nextWaveDouble=true;}},
-            {icon:'⚰️',name:'矿场崩塌',desc:'所有水晶矿场被摧毁',apply:()=>{destroyAllMines();}},
-            {icon:'💰',name:'财政紧缩',desc:'击杀金币收益永久-15%',apply:()=>{globalPenalties.pointReduction++;}},
-            {icon:'👹',name:'Boss连连',desc:'每波额外生成BOSS概率+15%',apply:()=>{globalPenalties.extraBossChance++;}},
-            {icon:'🛡️',name:'皮糙肉厚',desc:'所有敌人伤害减免+7%',apply:()=>{globalPenalties.damageReduction++;}},
-            {icon:'💔',name:'护甲崩坏',desc:'所有炮塔护甲暂时减半',apply:()=>{stunAllTowers(4);}},
-            {icon:'🌀',name:'资源枯竭',desc:'所有炮塔攻击降低30%持续15秒',apply:()=>{for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')grid[r][c].overloadTimer=Math.max(grid[r][c].overloadTimer,15);}}
-        ];
-        const sel=penalties.sort(()=>Math.random()-0.5).slice(0,count);
-        let html='<div class="modal-overlay"><div class="modal"><h3>👾 Boss被击败！选择惩罚</h3>';
-        sel.forEach((p,i)=>{ html+=`<div class="buff-card" onclick="window.applyPenalty(${i})">${p.icon}<br><b>${p.name}</b><br><small>${p.desc}</small></div>`; });
+        // 使用与AFFIX_POOL相同的词条列表;已消耗的"仅一次"词条不再出现
+        const available=AFFIX_POOL.filter(a=>!isAffixConsumed(a));
+        const sel=available.length?shuffleArray([...available]).slice(0,Math.min(count,available.length)):[];
+        let html='<div class="modal-overlay"><div class="modal"><h3>👾 选择惩罚 (选1)</h3><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
+        sel.forEach((a,i)=>{ html+=`<div class="buff-card" onclick="window.applyPenalty(${i})"><b>${a.name}</b><br><small>${a.desc}</small></div>`; });
+        if(!sel.length) html+='<p style="color:#888;">没有可用的惩罚了</p>';
         html+='</div></div>'; document.getElementById('modalContainer').innerHTML=html; window._pendingPenalties=sel;
     }
-    window.applyPenalty=function(i){ if(window._pendingPenalties&&window._pendingPenalties[i]){ window._pendingPenalties[i].apply(); window._pendingPenalties=null; document.getElementById('modalContainer').innerHTML=''; bossSelectionPause=false; updateUI(); } };
+    window.applyPenalty=function(i){ if(window._pendingPenalties&&window._pendingPenalties[i]){ window._pendingPenalties[i].effect(); window._pendingPenalties=null; document.getElementById('modalContainer').innerHTML=''; bossSelectionPause=false; updateUI(); } };
     function destroyRandomTowers(f){ const ts=[]; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')ts.push([r,c]); const cnt=Math.floor(ts.length*f); for(let i=0;i<cnt;i++){ if(!ts.length)break; const idx=Math.floor(Math.random()*ts.length); const [r,c]=ts.splice(idx,1)[0]; grid[r][c].type='empty'; } }
     function stunAllTowers(d){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')grid[r][c].stunned=Math.max(grid[r][c].stunned,d); }
     function teleportEnemiesNearBase(n){ const bx=END_COL*CELL_SIZE+12,by=END_ROW*CELL_SIZE+12; let t=0; for(const e of enemies){ if(!e.alive||e.reachedEnd)continue; if(t>=n)break; // 修复:传送到基地前3格而非终点,避免瞬间入基地
         const targetIdx=Math.max(0,pathOrder.length-4); e.pathIndex=targetIdx; e.subX=pathOrder[targetIdx][1]*CELL_SIZE+12; e.subY=pathOrder[targetIdx][0]*CELL_SIZE+12; e.x=e.subX; e.y=e.subY; e.straightToBase=false; spawnParticles(e.x,e.y,'#ff4444',10); t++; } }
     function downgradeRandomTowers(n){ const ts=[]; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')ts.push([r,c]); for(let i=0;i<n;i++){ if(!ts.length)break; const idx=Math.floor(Math.random()*ts.length); const [r,c]=ts.splice(idx,1)[0]; const cell=grid[r][c]; if(cell.towerLevel>1) cell.towerLevel--; else if(cell.atkLvl>0) cell.atkLvl--; else if(cell.cdLvl>0) cell.cdLvl--; else if(cell.rangeLvl>0) cell.rangeLvl--; } }
     // 修复:基地灼烧每秒3点并触发游戏结束
-    function startBaseBurn(duration){ let timer=duration; const interval=setInterval(()=>{ if(gamePhase!=='defense'){ clearInterval(interval); return; } damageBase(3,'基地灼烧'); timer--; if(timer<=0) clearInterval(interval); },1000); }
+    function startBaseBurn(duration){ let timer=duration; const interval=setInterval(()=>{ if(gamePhase!=='defense'){ clearInterval(interval); return; } damageBase(5,'基地灼烧'); timer--; if(timer<=0) clearInterval(interval); },1000); }
     function destroyAllMines(){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower'&&grid[r][c].towerType==='mine') grid[r][c].type='empty'; }
+    // 随机献祭指定数量炮塔(三伏天)
+    function sacrificeRandomTowers(count){ const towers=[]; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].type==='tower')towers.push([r,c]); towers.sort(()=>Math.random()-0.5); for(let i=0;i<Math.min(count,towers.length);i++) sacrificeAndRefund(towers[i][0],towers[i][1]); }
+    // 科技封锁:随机禁用7种普通炮塔(可建造类,排除特殊/修复/矿场)
+    function techLockdown(){ const types=Object.keys(TOWER_TYPES).filter(t=>!TOWER_TYPES[t].isSpecial&&t!=='repair'&&t!=='mine'); types.sort(()=>Math.random()-0.5); techLockedTypes=techLockedTypes||new Set(); for(let i=0;i<Math.min(7,types.length);i++) techLockedTypes.add(types[i]); }
+    // 判断炮塔是否满级(fields类看atk/cd/range, 非fields看towerLevel)
+    function isTowerMaxed(cell){ const t=TOWER_TYPES[cell.towerType]; if(!t)return false; const baseMaxLvl=(gameMode==='season'&&seasonSubMode==='fortress')?16:20; const maxLvl=t.maxLvl||baseMaxLvl; if(t.fields){ if((cell.atkLvl||0)<maxLvl||(cell.cdLvl||0)<maxLvl) return false; if(t.rangePerLvl>0&&(cell.rangeLvl||0)<maxLvl) return false; return true; } return (cell.towerLevel||0)>=maxLvl; }
+    // 种植前置:需要目标格子有对应满级炮塔
+    function canPlantOn(row,col,towerType){ const td=TOWER_TYPES[towerType]; if(!td.requiresMaxed)return true; const cell=grid[row][col]; if(!cell||cell.type!=='tower')return false; if(cell.towerType!==td.requiresMaxed)return false; return isTowerMaxed(cell); }
+    // 路灯范围判定(用于揭示隐形幽魂)
+    function isEnemyInLampRange(e){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const cell=grid[r][c]; if(cell.type==='tower'&&cell.towerType==='lamp'){ const lr=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE; if(Math.hypot(e.x-(c*CELL_SIZE+12),e.y-(r*CELL_SIZE+12))<lr) return true; } } return false; }
+    // 炮塔索敌判定:隐形敌人需在路灯范围内才可被锁定
+    function canTargetEnemy(e){ if(!e||!e.alive)return false; if(e.invisible && !isEnemyInLampRange(e)) return false; return true; }
+    // 天气控制
+    window.setWeather=function(type){ weatherType=(type==='sunny')?null:type; weatherWavesLeft=(type==='sunny')?0:2; updateUI(); };
 
     let _pointerIsTouch=false, lastTouchDist=0;
     function getCanvasCoords(e){ const rect=canvas.getBoundingClientRect(); let cx,cy; if(e.touches){ cx=e.touches[0].clientX; cy=e.touches[0].clientY; } else{ cx=e.clientX; cy=e.clientY; } return {x:cx-rect.left,y:cy-rect.top}; }
     function handleDown(e){ e.preventDefault(); _pointerIsTouch=!!e.touches; const {x,y}=getCanvasCoords(e); mouseDown=true; mouseCanvasX=x; mouseCanvasY=y; mouseCol=Math.floor(x/CELL_SIZE); mouseRow=Math.floor(y/CELL_SIZE); lastTouchDist=0;
-        if(quickUpgradeMode&&gamePhase==='defense'){ selectionStartRow=mouseRow; selectionStartCol=mouseCol; selectionEndRow=mouseRow; selectionEndCol=mouseCol; }
+        if((quickUpgradeMode||(operationMode==='sacrifice'||operationMode==='remove'))&&gamePhase==='defense'){ selectionStartRow=mouseRow; selectionStartCol=mouseCol; selectionEndRow=mouseRow; selectionEndCol=mouseCol; }
         else if(gamePhase==='digging'&&mouseRow>=0&&mouseRow<ROWS&&mouseCol>=0&&mouseCol<COLS){ if(mouseRow===END_ROW&&mouseCol===END_COL){ /* 基地:交给click/up处理,不挖 */ } else { if(digCell(mouseRow,mouseCol)&&checkStartEndConnected())startDefensePhase(); } updateUI(); } }
-    function handleMove(e){ e.preventDefault(); const {x,y}=getCanvasCoords(e); lastTouchDist=Math.max(lastTouchDist,Math.abs(x-mouseCanvasX)+Math.abs(y-mouseCanvasY)); mouseCanvasX=x; mouseCanvasY=y; if(quickUpgradeMode&&mouseDown&&gamePhase==='defense'){ const col=Math.floor(x/CELL_SIZE), row=Math.floor(y/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ selectionEndRow=row; selectionEndCol=col; } } else if(mouseDown&&gamePhase==='digging'){ const col=Math.floor(x/CELL_SIZE), row=Math.floor(y/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS&&(row!==mouseRow||col!==mouseCol)){ mouseRow=row; mouseCol=col; if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); updateUI(); } } }
+    function handleMove(e){ e.preventDefault(); const {x,y}=getCanvasCoords(e); lastTouchDist=Math.max(lastTouchDist,Math.abs(x-mouseCanvasX)+Math.abs(y-mouseCanvasY)); mouseCanvasX=x; mouseCanvasY=y; if((quickUpgradeMode||(operationMode==='sacrifice'||operationMode==='remove'))&&mouseDown&&gamePhase==='defense'){ const col=Math.floor(x/CELL_SIZE), row=Math.floor(y/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ selectionEndRow=row; selectionEndCol=col; } } else if(mouseDown&&gamePhase==='digging'){ const col=Math.floor(x/CELL_SIZE), row=Math.floor(y/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS&&(row!==mouseRow||col!==mouseCol)){ mouseRow=row; mouseCol=col; if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); updateUI(); } } }
     function handleUp(e){ if(e.preventDefault)e.preventDefault();
         if(quickUpgradeMode&&gamePhase==='defense'&&selectionStartRow>=0&&selectionEndRow>=0){ if(lastTouchDist>3) quickUpgradeInRect(selectionStartRow,selectionStartCol,selectionEndRow,selectionEndCol); selectionStartRow=-1; selectionEndRow=-1; }
+        // 献祭模式:拖动范围内献祭所有炮塔
+        if(operationMode==='sacrifice'&&gamePhase==='defense'&&selectionStartRow>=0&&selectionEndRow>=0){
+            if(lastTouchDist>3){ quickSacrificeInRect(selectionStartRow,selectionStartCol,selectionEndRow,selectionEndCol); }
+            else{ const col=Math.floor(mouseCanvasX/CELL_SIZE), row=Math.floor(mouseCanvasY/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ const cell=grid[row][col]; if(cell&&cell.type==='tower'){ const showSacrifice=devMode||(gameMode==='season')||(waveNumber>=5); if(showSacrifice) sacrificeAndRefund(row,col); else alert('普通模式献祭功能在第5波解锁'); } } }
+            selectionStartRow=-1; selectionEndRow=-1; return;
+        }
+        // 铲除模式:拖动范围内铲除所有炮塔
+        if(operationMode==='remove'&&gamePhase==='defense'&&selectionStartRow>=0&&selectionEndRow>=0){
+            if(lastTouchDist>3){ quickRemoveInRect(selectionStartRow,selectionStartCol,selectionEndRow,selectionEndCol); }
+            else{ const col=Math.floor(mouseCanvasX/CELL_SIZE), row=Math.floor(mouseCanvasY/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ const cell=grid[row][col]; if(cell&&cell.type==='tower'){ removeTower(row,col); } } }
+            selectionStartRow=-1; selectionEndRow=-1; return;
+        }
         // 触摸端:仅点击(非拖动)时弹出菜单
         if(_pointerIsTouch&&lastTouchDist<5&&!quickUpgradeMode&&(gamePhase==='defense'||gamePhase==='digging')){ const col=Math.floor(mouseCanvasX/CELL_SIZE), row=Math.floor(mouseCanvasY/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ if(gamePhase==='digging'){ if(row===END_ROW&&col===END_COL){ showBaseMenu(mouseCanvasX,mouseCanvasY); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mouseCanvasX,mouseCanvasY); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); } }
         mouseDown=false; }
@@ -883,7 +1082,10 @@
     canvas.addEventListener('mouseleave',()=>{ mouseDown=false; }); canvas.addEventListener('touchstart',handleDown,{passive:false}); canvas.addEventListener('touchmove',handleMove,{passive:false}); canvas.addEventListener('touchend',handleUp); canvas.addEventListener('touchcancel',handleUp);
     // 修复:click仅处理鼠标(触摸由handleUp处理),避免重复弹菜单
     canvas.addEventListener('click',(e)=>{ if(_pointerIsTouch)return; if(quickUpgradeMode)return; const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left, my=e.clientY-rect.top; mouseCanvasX=mx; mouseCanvasY=my; const col=Math.floor(mx/CELL_SIZE), row=Math.floor(my/CELL_SIZE); if(row<0||row>=ROWS||col<0||col>=COLS)return; closeMenu();
-        if(operationMode==='sacrifice'&&gamePhase==='defense'){ const cell=grid[mouseRow][mouseCol]; if(cell&&cell.type==='tower'){ sacrificeAndRefund(mouseRow,mouseCol); } return; }
+        if(operationMode==='sacrifice'&&gamePhase==='defense'){
+            // 普通模式(非赛季)需要第5波解锁，赛季模式随时可用
+            if(gameMode!=='season'&&waveNumber<5){ alert('普通模式献祭功能在第5波解锁'); return; }
+            const cell=grid[row][col]; if(cell&&cell.type==='tower'){ sacrificeAndRefund(row,col); } return; }
         if(gamePhase==='digging'){ if(row===END_ROW&&col===END_COL){ showBaseMenu(mx,my); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mx,my); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } handleCellClick(row,col,mx,my); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; }
         handleCellClick(row,col,mx,my); });
     function handleCellClick(row,col,mx,my){
@@ -924,12 +1126,13 @@
         }
         const isFortress=gameMode==='season'&&seasonSubMode==='fortress';
         if(cell.type==='empty'){
-            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
-            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isWireNet||td.isMirror){ menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
+            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
+            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if((td.isWireNet||td.isMirror)&&!td.requiresMaxed){ menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isOneShot){ if(isFortress)return; menu.innerHTML += `<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
         }
         if(cell.isPath && cell.type==='path'){
             Object.keys(OBSTACLE_TYPES).forEach(t=>{ const obs=OBSTACLE_TYPES[t]; if(!isObstacleUnlocked(t))return; if(isFortress&&t==='mine')return; let costHtml=obs.crystalCost?`<span class="crystal-cost">💎${obs.crystalCost}</span>`:`<span class="cost">${obsCost(t)}pt</span>`; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','obstacle');closeMenu()"><span>${obs.icon}${obs.name}</span>${costHtml}</div>`; });
+            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}<small style="color:#ff6'> ❗通道建筑</small></span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isOneShot){ if(isFortress)return; menu.innerHTML += `<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
         }
         // 开发者模式:放置怪物
@@ -943,17 +1146,23 @@
         const cell=grid[row][col]; const menu=document.getElementById('context-menu'); menu.innerHTML='';
         if(cell.type==='tower'){
             const t=TOWER_TYPES[cell.towerType]; if(!t)return;
+            // 满级炮塔可种植进阶塔(风暴核心/药水塔/电线网)
+            { let _uhtml=''; for(const ut of Object.keys(TOWER_TYPES)){ const utd=TOWER_TYPES[ut]; if(utd.requiresMaxed && utd.requiresMaxed===cell.towerType && isTowerMaxed(cell)){ _uhtml+=`<div class="menu-item" onclick="placeItem(${row},${col},'${ut}','tower');closeMenu()"><span>${utd.icon}种植${utd.name}</span>${towerCostHtml(utd)}</div>`; } } if(_uhtml)menu.innerHTML+=_uhtml; }
+            // 天气控制塔:弹出天气选择
+            if(t.isWeather){ menu.innerHTML+=`<div style="padding:6px;color:#f0c040;font-size:0.75em;">${t.icon} ${t.name}</div>`; const wopts=[{id:'sunny',name:'☀️晴天',d:'无特殊效果'},{id:'rain',name:'🌧️雨天',d:'所有敌人湿润'},{id:'fog',name:'🌫️雾天',d:'炮塔射程-30%'},{id:'night',name:'🌙夜晚',d:'战场变暗,仅路灯可见'}]; for(const o of wopts){ menu.innerHTML+=`<div class="menu-item" onclick="setWeather('${o.id}');closeMenu()"><span>${o.name}</span><small style="color:#888"> ${o.d}</small></div>`; } const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`; menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-240)+'px'; return; }
+            // 通道建筑血量显示
+            if(cell.buildingHP>0) menu.innerHTML+=`<div style="padding:4px;color:#ff6644;font-size:0.7em;">❤️通道建筑血量: ${Math.ceil(cell.buildingHP)}/100</div>`;
             // 电线网:特殊菜单(选择连接点+铲除+搬运)
             if(t.isWireNet){
                 menu.innerHTML+=`<div style="padding:6px;color:#f0c040;font-size:0.75em;">🕸️ 电线网 ⚔️${towerDmg('wireNet',cell)}</div>`;
                 menu.innerHTML+=`<div class="menu-item" onclick="selectWireNetPair(${row},${col});"><span>🔗选择连接点</span></div>`;
                 if(cell.wireNetPair){ menu.innerHTML+=`<div style="padding:4px;font-size:0.7em;color:#88ccff;">已连接:(${cell.wireNetPair[0]},${cell.wireNetPair[1]})</div>`; }
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
-                if(waveNumber>=10){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; }
+                { const showSacrifice=devMode||(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
+                { const showMove=devMode||(gameMode==='season')||(waveNumber>=10); if(showMove){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; } }
                 menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-200)+'px'; return;
             }
-            // 镜子:特殊菜单(仅铲除)
+            // 镜子:特殊菜单(已删除)
             if(t.isMirror){
                 menu.innerHTML+=`<div style="padding:6px;color:#f0c040;font-size:0.75em;">🪞 镜子</div>`;
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
@@ -963,7 +1172,7 @@
             if(t.isOneShot||t.noUpgrade){
                 menu.innerHTML+=`<div style="padding:6px;color:#f0c040;font-size:0.75em;">${t.icon} ${t.name}</div>`;
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
+                { const showSacrifice=devMode||(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
                 menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-200)+'px'; return;
             }
             if(t.fields){
@@ -982,20 +1191,21 @@
                 if(canUpCd) menu.innerHTML+=`<div class="menu-item" onclick="upgradeTowerField(${row},${col},'cd',${cdIsCrystal?0:cdCost});closeMenu()"><span>⏱冷却 -${t.cdPerLvl.toFixed(2)} (${cell.cdLvl}→${cell.cdLvl+1})</span><span class="${cdIsCrystal?'crystal-cost':'cost'}">${cdIsCrystal?'💎'+cdCrystalCost:cdCost+'pt'}</span></div>`;
                 if(canUpRange) menu.innerHTML+=`<div class="menu-item" onclick="upgradeTowerField(${row},${col},'range',${rangeIsCrystal?0:rangeCost});closeMenu()"><span>🔭范围 +${t.rangePerLvl||0} (${cell.rangeLvl}→${cell.rangeLvl+1})</span><span class="${rangeIsCrystal?'crystal-cost':'cost'}">${rangeIsCrystal?'💎'+rangeCrystalCost:rangeCost+'pt'}</span></div>`;
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
-                if(waveNumber>=10){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; }
+                { const showSacrifice=devMode||(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
+                { const showMove=devMode||(gameMode==='season')||(waveNumber>=10); if(showMove){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; } }
             } else{
                 const upCost=Math.floor((cell.towerLevel+1)*8+10);
-                const fortressMaxLvl=(gameMode==='season'&&seasonSubMode==='fortress')?((cell.isPath||cell.wasPath)?20:15):MAX_TOWER_LVL;
+                const baseMaxLvl=(gameMode==='season'&&seasonSubMode==='fortress')?((cell.isPath||cell.wasPath)?20:16):MAX_TOWER_LVL;
+                const fortressMaxLvl=t.maxLvl?Math.min(t.maxLvl,baseMaxLvl):baseMaxLvl;
                 if(cell.towerLevel<fortressMaxLvl){
                     if(cell.towerLevel>=ULTIMATE_THRESHOLD){ const cc=crystalCostForLevel(cell.towerLevel); menu.innerHTML+=`<div class="menu-item" onclick="if(devMode||crystals>=${cc}){if(!devMode)crystals-=${cc};grid[${row}][${col}].towerLevel++;closeMenu();updateUI();}"><span>⬆究极升级 (${cell.towerLevel}→${cell.towerLevel+1})</span><span class="crystal-cost">💎${cc}</span></div>`; }
                     else{ menu.innerHTML+=`<div class="menu-item" onclick="upgradeTowerField(${row},${col},'lvl',${upCost});closeMenu()"><span>⬆升级</span><span class="cost">${upCost}pt</span></div>`; }
                 }
                 const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`;
-                if(waveNumber>=5){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; }
-                if(waveNumber>=10){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; }
+                { const showSacrifice=devMode||(gameMode==='season')||(waveNumber>=5); if(showSacrifice){ const sacRefund=getSacrificeRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="sacrificeAndRefund(${row},${col});"><span>⚡献祭 (消耗金币)</span><span class="cost">-${sacRefund}pt</span></div>`; } }
+                { const showMove=devMode||(gameMode==='season')||(waveNumber>=10); if(showMove){ menu.innerHTML+=`<div class="menu-item" onclick="startMoveTower(${row},${col});"><span>📦搬运炮塔</span></div>`; } }
             }
-            if(cell.towerType==='fire'||cell.towerType==='toxic') menu.innerHTML+=`<div class="menu-item" onclick="rotateTowerDirection(${row},${col});closeMenu();"><span>↻旋转方向</span></div>`;
+            if(cell.towerType==='fire'||cell.towerType==='toxic'||cell.towerType==='fan') menu.innerHTML+=`<div class="menu-item" onclick="rotateTowerDirection(${row},${col});closeMenu();"><span>↻旋转方向</span></div>`;
         } else if(cell.type==='obstacle'){
             const obs = OBSTACLE_TYPES[cell.obstacleType]; if(!obs||!obs.fields) return;
             const up = cell.obstacleUpgrades || {};
@@ -1024,7 +1234,7 @@
     }
     // 水晶升级费用:指数增长 50*2^(当前等级-16级阈值)
     function crystalCostForLevel(currentLvl){ return 50 * Math.pow(2, Math.max(0, currentLvl - ULTIMATE_THRESHOLD)); }
-    function upgradeTowerField(row,col,field,cost){ const cell=grid[row][col]; if(cell.type!=='tower')return; if(gameMode==='season'&&seasonSubMode==='fortress'){ const maxLvl=(cell.isPath||cell.wasPath)?20:15; if(cell.towerLevel>=maxLvl){ alert('坚不可摧模式:非通道炮塔最高15级'); return; } } const needCrystal=(field==='atk'&&cell.atkLvl>=ULTIMATE_THRESHOLD)||(field==='cd'&&cell.cdLvl>=ULTIMATE_THRESHOLD)||(field==='range'&&cell.rangeLvl>=ULTIMATE_THRESHOLD&&TOWER_TYPES[cell.towerType].rangePerLvl>0); if(needCrystal){ let lvl=field==='atk'?cell.atkLvl:field==='cd'?cell.cdLvl:cell.rangeLvl; const crystalCost=crystalCostForLevel(lvl); if(devMode||crystals>=crystalCost){ if(!devMode)crystals-=crystalCost; if(field==='atk')cell.atkLvl++; else if(field==='cd')cell.cdLvl++; else if(field==='range')cell.rangeLvl++; updateUI(); } } else { if(devMode||points>=cost){ if(!devMode)points-=cost; if(field==='atk')cell.atkLvl++; else if(field==='cd')cell.cdLvl++; else if(field==='range')cell.rangeLvl++; else if(field==='lvl')cell.towerLevel++; updateUI(); } } }
+    function upgradeTowerField(row,col,field,cost){ const cell=grid[row][col]; if(cell.type!=='tower')return; if(gameMode==='season'&&seasonSubMode==='fortress'){ const maxLvl=(cell.isPath||cell.wasPath)?20:16; if(cell.towerLevel>=maxLvl){ alert('坚不可摧模式:非通道炮塔最高16级'); return; } } const needCrystal=(field==='atk'&&cell.atkLvl>=ULTIMATE_THRESHOLD)||(field==='cd'&&cell.cdLvl>=ULTIMATE_THRESHOLD)||(field==='range'&&cell.rangeLvl>=ULTIMATE_THRESHOLD&&TOWER_TYPES[cell.towerType].rangePerLvl>0); if(needCrystal){ let lvl=field==='atk'?cell.atkLvl:field==='cd'?cell.cdLvl:cell.rangeLvl; const crystalCost=crystalCostForLevel(lvl); if(devMode||crystals>=crystalCost){ if(!devMode)crystals-=crystalCost; if(field==='atk')cell.atkLvl++; else if(field==='cd')cell.cdLvl++; else if(field==='range')cell.rangeLvl++; updateUI(); } } else { if(devMode||points>=cost){ if(!devMode)points-=cost; if(field==='atk')cell.atkLvl++; else if(field==='cd')cell.cdLvl++; else if(field==='range')cell.rangeLvl++; else if(field==='lvl')cell.towerLevel++; updateUI(); } } }
     function getObstacleStats(cell){
         if(cell.type!=='obstacle') return '';
         const type = cell.obstacleType;
@@ -1097,7 +1307,7 @@
     function showEnemyIntro(typeKey,level){ const t=ENEMY_TYPES[typeKey]; if(!t)return; document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>⚠️新敌人！</h3><div style="text-align:center;font-size:3em;">${t.emoji}</div><h4>${t.name} Lv${level}</h4><p>${t.desc}</p><p style="font-size:0.8em;color:#aaa;">❤️${t.hp} ⚡${t.damage} 🏃${t.speed} 🛡️${t.armor}</p><button onclick="document.getElementById('modalContainer').innerHTML='';introPause=false;pendingEnemyIntro=null;">确认</button></div></div>`; }
     function openInstructions(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:700px;max-height:85vh;overflow-y:auto;"><h3>📋 说明书</h3>`;
         html+=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">`;
-        const secs=[['basic','🎮基础'],['tower','🏗️炮塔'],['obstacle','🚧障碍'],['enemy','👾怪物'],['season','🏆赛季'],['tips','💡技巧']];
+        const secs=[['basic','🎮基础'],['tower','🏗️炮塔'],['obstacle','🚧障碍'],['enemy','👾怪物'],['season','🏆赛季'],['tips','💡技巧'],['affix','📛词条']];
         for(const [id,label] of secs){ html+=`<button class="nav-btn" style="font-size:0.8em;" onclick="document.querySelectorAll('.inst-section').forEach(s=>s.style.display='none');document.getElementById('inst-${id}').style.display='block';">${label}</button>`; }
         html+=`</div>`;
         // 基础
@@ -1164,9 +1374,13 @@
         html+=`<div class="ency-entry">⚡ 震撼者(眩晕炮塔) | 🚛 坦克师(重甲) | 💣 自爆虫 | 🦝 盗贼(偷金币)</div>`;
         html+=`<div class="ency-entry">🧙 召唤师 | 🔵 分裂者 | 🛡️ 护盾兵 | 🌀 传送者 | 🪞 反弹者</div>`;
         html+=`<h4>👑 Boss</h4>`;
-        html+=`<div class="ency-entry">👾 <b>毁灭者</b> - 第20波，眩晕炮塔</div>`;
-        html+=`<div class="ency-entry">👑 <b>贾维</b> - 第50波，4种全图技能</div>`;
-        html+=`<div class="ency-entry">🛩️ <b>轰炸机</b> - 第35波，飞行直线，持续轰炸炮塔</div>`;
+        html+=`<div class="ency-entry">👾 <b>毁灭者</b> - 第20波，眩晕炮塔，概率给周围怪物回满血</div>`;
+        html+=`<div class="ency-entry">👑 <b>贾维</b> - 第50波，全图抗伤50%，全图眩晕/突进/红色激光(震屏)</div>`;
+        html+=`<div class="ency-entry">🛩️ <b>轰炸机</b> - 第35波，飞行直线，持续轰炸炮塔，召唤自爆虫，投掷炸弹</div>`;
+        html+=`<div class="ency-entry">💃 <b>舞者</b> - 第45波，召唤超级墓碑(每2秒生成究极怪物)</div>`;
+        html+=`<div class="ency-entry">🎓 <b>学者</b> - 第25波，免疫同类炮塔伤害(首次受击后该类型炮塔伤害归零)</div>`;
+        html+=`<div class="ency-entry">🗿 <b>超级墓碑</b> - 不移动，每2秒召唤一个随机究极怪物</div>`;
+        html+=`<div class="ency-entry">🚛 <b>坦克师(强化)</b> - 重甲移动，每2秒向最近炮塔发射炮弹</div>`;
         html+=`<h4>💀 究极敌人（第15波后出现）</h4>`;
         html+=`<div class="ency-entry" style="color:#ff6666;">究极僵尸/震撼者：眩晕炮塔</div>`;
         html+=`<div class="ency-entry" style="color:#ff6666;">究极史莱姆：死亡分裂16个普通史莱姆</div>`;
@@ -1207,6 +1421,13 @@
         html+=`<div class="ency-entry">10. 幽魂和飞行单位无视障碍，需要炮塔直接击杀</div>`;
         html+=`<div class="ency-entry">11. 仙人掌/拦路石被破坏前会阻挡敌人后退</div>`;
         html+=`<div class="ency-entry">12. 前线兵营可生产友军协助防守</div>`;
+        html+=`</div>`;
+        // 词条
+        html+=`<div class="inst-section" id="inst-affix" style="display:none;">`;
+        html+=`<h4>📛 词条列表</h4>`;
+        html+=`<p style="color:#aaa;">击杀Boss后可选择惩罚词条，影响后续波次。以下是全部已有词条：</p>`;
+        for(const a of AFFIX_POOL){ html+=`<div class="ency-entry"><b style="color:#f0c040;">${a.name}</b> - ${a.desc}</div>`; }
+        html+=`<p style="color:#888;font-size:0.8em;margin-top:8px;">共 ${AFFIX_POOL.length} 个词条。坚不可摧模式中每5波可从5个随机词条中选2个。</p>`;
         html+=`</div>`;
         html+=`<button onclick="document.getElementById('modalContainer').innerHTML=''">关闭</button></div></div>`;
         document.getElementById('modalContainer').innerHTML=html; }
@@ -1258,15 +1479,15 @@
     function getSaveData(id){ const raw=localStorage.getItem(SAVE_PREFIX+id); if(!raw)return null; try{ return JSON.parse(raw); }catch(e){ return null; } }
     function setSaveData(id,data){ localStorage.setItem(SAVE_PREFIX+id,JSON.stringify(data)); addSaveId(id); }
     function deleteSaveData(id){ localStorage.removeItem(SAVE_PREFIX+id); removeSaveId(id); renderSaveList(); }
-    function saveGame(){ const saveId=Date.now().toString(36)+Math.random().toString(36).substring(2,6); const data={ gameState:{ gamePhase,baseHP,points,crystals,waveNumber,waveActive,waveBreakTimer,waveBreakDuration, grid:grid.map(r=>r.map(c=>({...c}))), waveSpawnQueue,waveSpawnTimer,achievementData,unlockedEnemyTypes:Array.from(unlockedEnemyTypes),bossBuffLevels,globalPenalties,baseUpgrades,baseTotems,nextWaveDouble }, timestamp:Date.now() }; setSaveData(saveId,data); renderSaveList(); alert('存档已保存'); }
-    function loadGame(saveId){ const data=getSaveData(saveId); if(!data)return; const gs=data.gameState; gamePhase=gs.gamePhase; baseHP=gs.baseHP; points=Math.min(gs.points,MAX_POINTS); crystals=gs.crystals||0; waveNumber=gs.waveNumber; waveActive=gs.waveActive; waveBreakTimer=gs.waveBreakTimer; waveBreakDuration=gs.waveBreakDuration||20; waveSpawnQueue=gs.waveSpawnQueue||[]; waveSpawnTimer=gs.waveSpawnTimer||0; achievementData=gs.achievementData||{}; unlockedEnemyTypes=new Set(gs.unlockedEnemyTypes||[]); bossBuffLevels=gs.bossBuffLevels||{speed:0,health:0,armor:0}; globalPenalties=gs.globalPenalties||{damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades=gs.baseUpgrades||{toughness:0,goldGen:0}; baseTotems=gs.baseTotems||0; nextWaveDouble=gs.nextWaveDouble||false; maxBaseHP=100+baseUpgrades.toughness*20; if(gs.grid)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)Object.assign(grid[r][c],gs.grid[r][c]); enemies=[]; allies=[]; projectiles=[]; particles=[]; bossEnemy=null; // 修复:重置暂停标志,避免卡死
+    function saveGame(){ const saveId=Date.now().toString(36)+Math.random().toString(36).substring(2,6); const data={ gameState:{ gamePhase,baseHP,points,crystals,waveNumber,waveActive,waveBreakTimer,waveBreakDuration, grid:grid.map(r=>r.map(c=>({...c}))), waveSpawnQueue,waveSpawnTimer,achievementData,unlockedEnemyTypes:Array.from(unlockedEnemyTypes),bossBuffLevels,globalPenalties,baseUpgrades,baseTotems,nextWaveDouble,nanjingTreaty,landlordActive,woundInfection,repairPriorityTower,undeadBoss,gunpowderActive,callSupport,eastWindActive,doubleBoss,techLockedTypes:techLockedTypes?Array.from(techLockedTypes):null,weatherType,weatherWavesLeft }, timestamp:Date.now() }; setSaveData(saveId,data); renderSaveList(); alert('存档已保存'); }
+    function loadGame(saveId){ const data=getSaveData(saveId); if(!data)return; const gs=data.gameState; gamePhase=gs.gamePhase; baseHP=gs.baseHP; points=Math.min(gs.points,MAX_POINTS); crystals=gs.crystals||0; waveNumber=gs.waveNumber; waveActive=gs.waveActive; waveBreakTimer=gs.waveBreakTimer; waveBreakDuration=gs.waveBreakDuration||20; waveSpawnQueue=gs.waveSpawnQueue||[]; waveSpawnTimer=gs.waveSpawnTimer||0; achievementData=gs.achievementData||{}; unlockedEnemyTypes=new Set(gs.unlockedEnemyTypes||[]); bossBuffLevels=gs.bossBuffLevels||{speed:0,health:0,armor:0}; globalPenalties=gs.globalPenalties||{damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades=gs.baseUpgrades||{toughness:0,goldGen:0}; baseTotems=gs.baseTotems||0; nextWaveDouble=gs.nextWaveDouble||false; nanjingTreaty=gs.nanjingTreaty||false; landlordActive=gs.landlordActive||false; woundInfection=gs.woundInfection||false; repairPriorityTower=gs.repairPriorityTower||false; undeadBoss=gs.undeadBoss||false; gunpowderActive=gs.gunpowderActive||false; callSupport=gs.callSupport||false; eastWindActive=gs.eastWindActive||false; doubleBoss=gs.doubleBoss||false; techLockedTypes=gs.techLockedTypes?new Set(gs.techLockedTypes):null; weatherType=gs.weatherType||null; weatherWavesLeft=gs.weatherWavesLeft||0; maxBaseHP=100+baseUpgrades.toughness*20; if(gs.grid)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)Object.assign(grid[r][c],gs.grid[r][c]); enemies=[]; allies=[]; projectiles=[]; particles=[]; bossEnemy=null; // 修复:重置暂停标志,避免卡死
         introPause=false; bossSelectionPause=false; pendingEnemyIntro=null; if(gamePhase==='defense'){ if(!checkStartEndConnected()||!computePathOrder()){ alert('存档路径损坏'); resetGame(); return; } } updateUI(); renderSaveList(); alert('存档已读取'); }
     function renderSaveList(){ const container=document.getElementById('saveListContainer'); const saves=getSaveIndex(); if(saves.length===0){ container.innerHTML='<div style="padding:8px;color:#888;">暂无存档</div>'; return; } container.innerHTML=saves.map(id=>{ const data=getSaveData(id); if(!data)return''; const time=new Date(data.timestamp).toLocaleString(); return `<div class="save-item"><div class="save-info"><span class="save-user">📁存档</span><span class="save-time">${time}</span></div><button onclick="loadGame('${id}')">读档</button><button onclick="deleteSaveData('${id}')">删除</button></div>`; }).join(''); }
     document.getElementById('dropdownToggle').addEventListener('click',()=>{ document.getElementById('dropdownMenu').classList.toggle('show'); renderSaveList(); });
     document.getElementById('btnCreateNewSave').addEventListener('click',saveGame);
     document.addEventListener('click',(e)=>{ if(!e.target.closest('#saveDropdown'))document.getElementById('dropdownMenu').classList.remove('show'); });
     // 修复:重置时清空所有暂停标志与开发者伤害记录
-    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; updateUI(); }
+    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; updateUI(); }
     function triggerGameOver(){ if(gameMode==='season'&&seasonSubMode==='experience'){ baseHP=9999; return; } if(devMode){ baseHP=1; return; } if(baseTotems>0){ baseTotems--; baseHP=1; alert('🗿不死图腾生效！基地免于一死'); updateUI(); return; } if(gameMode==='season'){ if(baseHP<=0){ alert(`💀基地被摧毁！(HP: ${Math.floor(baseHP)}/${maxBaseHP})\n坚持到了第${waveNumber}波`); } endSeasonMode(); return; } alert('💀基地已摧毁！游戏重新开始'); resetGame(); }
 
     // ===== 赛季模式系统 =====
@@ -1320,7 +1541,7 @@
     function initSeasonMode(){
         seasonTimer=seasonMaxTime; seasonScore=0; seasonKills=0; seasonDifficulty=1; seasonSpawnTimer=0; seasonBossTimer=0; seasonActive=true; seasonEntryPoints=[];
         bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0};
-        baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; nextWaveDouble=false; randomBoxMode=false; randomBossLastWave=0;
+        baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; randomBoxMode=false; randomBossLastWave=0;
         enemies=[]; allies=[]; projectiles=[]; particles=[]; bossEnemy=null; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null;
         fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0;
         if(seasonSubMode==='experience'){
@@ -1427,9 +1648,9 @@
     function endSeasonMode(){ seasonActive=false; gamePhase='ended';
         let finalScore, finalKills=seasonKills, finalDiff, scoreLabel='分数', endTitle;
         if(seasonSubMode==='experience'){ finalScore=Math.floor(seasonScore); finalDiff=Math.floor(seasonDifficulty); endTitle='经验模式结束！'; scoreLabel='最终分数'; }
-        else if(seasonSubMode==='random'){ finalScore=waveNumber; finalDiff=seasonKills; endTitle='超级随机结束！'; scoreLabel='坚持波数'; }
-        else if(seasonSubMode==='besieged'){ finalScore=waveNumber; finalDiff=Math.floor(seasonDifficulty); endTitle='四面楚歌结束！'; scoreLabel='坚持波数'; }
-        else if(seasonSubMode==='fortress'){ finalScore=waveNumber; finalDiff=Math.floor(points); endTitle='坚不可摧结束！'; scoreLabel='坚持波数'; }
+        else if(seasonSubMode==='random'){ finalScore=seasonKills+waveNumber; finalDiff=waveNumber; endTitle='超级随机结束！'; scoreLabel='击杀+波次'; }
+        else if(seasonSubMode==='besieged'){ finalScore=seasonKills+waveNumber; finalDiff=waveNumber; endTitle='四面楚歌结束！'; scoreLabel='击杀+波次'; }
+        else if(seasonSubMode==='fortress'){ finalScore=seasonKills+waveNumber; finalDiff=waveNumber; endTitle='坚不可摧结束！'; scoreLabel='击杀+波次'; }
         else { finalScore=Math.floor(seasonScore); finalDiff=Math.floor(seasonDifficulty); endTitle='赛季结束！'; }
         // 根据登录状态显示不同内容
         const nameInputHtml = currentUser
@@ -1481,7 +1702,7 @@
         for(let i=0;i<5;i++){ try{ const gr=await fetchWithTimeout(CLOUD_LB.apiUrl, {headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json'}}, 8000); if(!gr.ok){ await new Promise(r=>setTimeout(r,500)); continue; } const fd=await gr.json(); const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2)))); const pr=await fetchWithTimeout(CLOUD_LB.apiUrl, {method:'PUT',headers:{'Authorization':`token ${CLOUD_LB.token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:`📊 更新排行榜 ${Date.now()}`,content,sha:fd.sha,branch:CLOUD_LB.branch})}, 8000); if(pr.ok){ _cloudLBCache=data; _cloudLBTime=Date.now(); return true; } // sha冲突或失败,等待后重试
             await new Promise(r=>setTimeout(r,1000*(i+1))); }catch(e){ await new Promise(r=>setTimeout(r,1000*(i+1))); } } return false; }
     async function saveLeaderboardEntry(name, score, kills, diff){ const key=SEASON_LB_KEYS[seasonSubMode]||'td_lb_experience';
-        const entry={name,score,kills,diff,date:Date.now()};
+        const entry={name,score,kills,diff,date:Date.now(),devMode:devMode};
         // 先更新本地(保留本地数据作为备份)
         let lb=getLeaderboard(seasonSubMode);
         let existing=lb.findIndex(e=>e.name===name);
@@ -1506,13 +1727,14 @@
         const cloud=await fetchCloudLB();
         let lb=lbLocal;
         if(cloud&&cloud[mode]){ lb=cloud[mode]; localStorage.setItem(SEASON_LB_KEYS[mode]||'td_lb_experience',JSON.stringify(lb)); }
-        let entries=''; if(lb.length===0){ entries='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lb.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; entries+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
+        let entries=''; if(lb.length===0){ entries='<div style="padding:12px;color:#888;text-align:center;">暂无记录，快来挑战吧！</div>'; } else { lb.forEach((e,i)=>{ const rank=i+1; const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${rank}`; const rankCls=i<5?`rank-${rank}`:'rank-other'; const devTag=e.devMode?'<span style="color:#ff4444;font-size:0.7em;margin-left:4px;border:1px solid #ff4444;padding:0 4px;border-radius:3px;">开了</span>':''; entries+=`<div class="leaderboard-entry ${rankCls}"><span class="lb-rank">${medal}</span><span class="lb-name">${e.name}${devTag}</span><span class="lb-score">${e.score}</span><span style="color:#888;font-size:0.8em;margin-left:8px;">💀${e.kills} 📊${e.diff}</span></div>`; }); }
         const lbList=document.getElementById('lbList'); if(lbList)lbList.innerHTML=entries;
     }
     // 返回菜单
     function backToMenu(){ seasonActive=false; document.getElementById('seasonHUD').style.display='none'; document.getElementById('modalContainer').innerHTML=''; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
     // 公告系统
     const ANNOUNCEMENTS=[
+        {version:'v2026.07.13',date:'2026-07-13',title:'🎮 v2026.07.13 史诗级更新',content:`<h4>📋 词条系统重制</h4><ul><li>所有模式负面词条重写，共29种词条</li><li>新增特殊词条：南京条约(每轮选惩罚)/罚单/包租婆/伤口感染/磨洋工/不死族/最后的火药/呼叫支援/东风不利/三伏天/祸不单行/科技封锁</li><li>8种"仅一次不消失"词条，抽取后永久生效</li><li>删除"度日如年"词条</li></ul><h4>🌀 新炮塔</h4><ul><li>风扇(第15波解锁)：直线攻击击退怪物，前方有水吹水蒸气，有冰箱吹冰雾；满级可种植风暴核心</li><li>路灯(最高15级)：驱散迷雾照亮黑暗，升级增大范围，使隐形敌人显现</li><li>天气控制者：改变天气(晴/雨/雾/夜)，2轮后效果消失</li></ul><h4>🏗️ 种植前置要求</h4><ul><li>风暴核心需种植在满级风扇上</li><li>药水塔需种植在满级毒素喷射器上</li><li>电线网需种植在满级特斯拉线圈上</li></ul><h4>👹 Boss大加强</h4><ul><li>贾维：新增红色激光(震动特效)+全图抗伤(伤害-50%)</li><li>轰炸机：新增召唤自爆虫+投掷炸弹</li><li>新Boss舞者：召唤超级墓碑→究极怪物</li><li>毁灭者：新增概率回满血</li><li>新小Boss学者：免疫同类炮塔伤害</li></ul><h4>💥 全屏震动效果</h4><ul><li>核弹/高射炮究极/Boss技能/爆炸触发屏幕震动</li></ul><h4>👻 隐形机制</h4><ul><li>幽魂类怪物隐形时无法被索敌</li><li>路灯照射可显现隐形敌人</li></ul><h4>🚛 坦克师开火</h4><ul><li>坦克师每2秒向最近炮塔开火</li></ul><h4>🏗️ 通道建筑血量</h4><ul><li>通道上可建造炮塔(100HP)，敌人经过扣血</li></ul><h4>🔧 修复站增强</h4><ul><li>修复站可修复炮塔(优先基地)</li></ul><h4>🖱️ 操作模式</h4><ul><li>四模式切换：普通/升级/献祭/铲除</li><li>献祭和铲除支持拖动范围操作</li><li>开发者模式直接解锁献祭和搬运</li></ul><h4>📊 排行榜</h4><ul><li>使用开发者模式提交显示"开了"标记</li><li>四面楚歌/坚不可摧/超级随机分数=击杀数+波次数</li></ul>`},
         {version:'v2026.07.12',date:'2026-07-12',title:'🎮 v2026.07.12 大更新',content:`<h4>🎨 主题系统</h4><ul><li>大背景颜色与炮塔基色统一，基地与入口颜色统一</li><li>新增焦糖星(暗)主题：夜空紫+焦糖棕+星光粉</li><li>新增焦糖星(亮)主题：奶油白+焦糖粉+暖橙</li></ul><h4>🖱️ 操作模式</h4><ul><li>新增三模式切换：普通操作/快捷升级/快捷献祭</li><li>献祭功能第5波解锁，搬运功能第10轮解锁</li></ul><h4>🛡️ 坚不可摧模式</h4><ul><li>非通道炮塔最高15级（通道炮塔仍20级）</li><li>禁用一次性道具</li></ul><h4>🏕️ 前线兵营</h4><ul><li>删除医生兵种</li><li>兵营可被敌人破坏（300HP）</li><li>更换兵种需30金币</li><li>修复盾兵不阻拦敌人且不扣血的bug</li></ul><h4>💬 聊天大厅</h4><ul><li>新增聊天大厅（已登录用户可用，游客禁用）</li><li>云端消息存储，每5秒自动刷新</li></ul>`},
         {version:'v2026.07.10',date:'2026-07-10',title:'🔐 v2026.07.10 用户系统上线',content:`<h4>🔐 用户系统</h4><ul><li>新增登录/注册功能：主界面点击"登录"按钮</li><li>已注册用户提交排行榜时自动填充用户名</li><li>已注册用户名受保护，游客无法使用</li><li>游客仍可提交排行榜，但需手动输入名称且不能使用已注册用户名</li></ul><h4>📋 数据备份</h4><ul><li>排行榜数据定期备份到 data/leaderboard-backup-*.json</li></ul>`},
         {version:'v2026.07.09',date:'2026-07-09',title:'🍬 v2026.07.09 主题更新',content:`<h4>✨ 新增主题</h4><ul><li>🍬 焦糖星主题(测试版)：夜空蓝背景+焦糖棕Canvas+奶油路径+星光金点缀</li></ul><h4>🎨 主题调整</h4><ul><li>海洋主题：路径颜色调为浅青#E1FFFF，未挖开棋盘格#00BFFF/#00FFFF交替</li><li>田野主题：页面背景改为深红#800000，路径#32CD32，未挖开#228B22</li><li>单调主题：路径与基地颜色交换，路径更亮</li></ul><h4>📋 其他</h4><ul><li>云端排行榜数据备份功能</li><li>修复排行榜提交时数据丢失问题</li></ul>`},
