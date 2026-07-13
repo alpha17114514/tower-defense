@@ -1,0 +1,129 @@
+{
+  "experience": [
+    {
+      "name": "123456780-",
+      "score": 402217,
+      "kills": 6721,
+      "diff": 20,
+      "date": 1783592466368
+    },
+    {
+      "name": "666钻石不够名字怎么有字数限？",
+      "score": 336031,
+      "kills": 4600,
+      "diff": 20,
+      "date": 1783669760323
+    },
+    {
+      "name": "alpha17",
+      "score": 241021,
+      "kills": 3274,
+      "diff": 20,
+      "date": 1783518852936
+    },
+    {
+      "name": "如果这个纪录消失说明云端存档..",
+      "score": 0,
+      "kills": 0,
+      "diff": 20,
+      "date": 1783518961077
+    }
+  ],
+  "besieged": [
+    {
+      "name": "alpha17",
+      "score": 51,
+      "kills": 2667,
+      "diff": 11,
+      "date": 1783665154727
+    },
+    {
+      "name": "哈哈哈哈我是王",
+      "score": 29,
+      "kills": 2034,
+      "diff": 6,
+      "date": 1783526336038
+    },
+    {
+      "name": "啊啊啊啊叭叭叭擦擦地",
+      "score": 11,
+      "kills": 190,
+      "diff": 3,
+      "date": 1783662903918
+    },
+    {
+      "name": "12345",
+      "score": 8,
+      "kills": 109,
+      "diff": 2,
+      "date": 1783663880299
+    },
+    {
+      "name": "666",
+      "score": 2,
+      "kills": 0,
+      "diff": 1,
+      "date": 1783219371718
+    },
+    {
+      "name": "gezi123",
+      "score": 2,
+      "kills": 0,
+      "diff": 1,
+      "date": 1783518997488
+    },
+    {
+      "name": "boring is gay",
+      "score": 2,
+      "kills": 13,
+      "diff": 1,
+      "date": 1783552532659
+    },
+    {
+      "name": "反反复复发",
+      "score": 2,
+      "kills": 0,
+      "diff": 1,
+      "date": 1783662947092
+    },
+    {
+      "name": "用",
+      "score": 2,
+      "kills": 0,
+      "diff": 1,
+      "date": 1783662970409
+    }
+  ],
+  "fortress": [
+    {
+      "name": "alpha17",
+      "score": 54,
+      "kills": 16742,
+      "diff": 15965,
+      "date": 1783552405179
+    }
+  ],
+  "random": [
+    {
+      "name": "114514",
+      "score": 8,
+      "kills": 27,
+      "diff": 27,
+      "date": 1783592820518
+    },
+    {
+      "name": "妈妈",
+      "score": 5,
+      "kills": 0,
+      "diff": 0,
+      "date": 1783220727964
+    },
+    {
+      "name": "alpha17",
+      "score": 5,
+      "kills": 0,
+      "diff": 0,
+      "date": 1783694997900
+    }
+  ]
+}
