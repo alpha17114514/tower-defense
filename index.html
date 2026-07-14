@@ -1052,35 +1052,37 @@
         for(const p of particles){ if(p.life<=0)continue; const alpha=p.life/p.maxLife; ctx.globalAlpha=alpha; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size||2,0,Math.PI*2); ctx.fill(); } ctx.globalAlpha=1;
         // 天气渲染:夜晚(仅路灯可见)与雾天(淡灰覆盖)
         if(weatherType==='night'||weatherType==='fog'){
-            ctx.save();
             if(weatherType==='night'){
-                // 绘制黑暗遮罩
-                ctx.fillStyle='rgba(5,5,25,0.82)';
-                ctx.fillRect(0,0,canvas.width,canvas.height);
-                // 使用destination-out抠出路灯照亮区域
-                ctx.globalCompositeOperation='destination-out';
+                // 使用离屏canvas处理夜晚遮罩，避免destination-out擦除主画布内容
+                const off=document.createElement('canvas'); off.width=canvas.width; off.height=canvas.height;
+                const oc=off.getContext('2d');
+                // 画黑色遮罩
+                oc.fillStyle='rgba(5,5,25,0.85)';
+                oc.fillRect(0,0,off.width,off.height);
+                // 用destination-out在离屏canvas上抠出路灯照亮区域
+                oc.globalCompositeOperation='destination-out';
                 for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
                     const cell=grid[r][c];
                     if(cell.type==='tower'&&cell.towerType==='lamp'){
-                        const lx=c*CELL_SIZE+12, ly=r*CELL_SIZE+12;
+                        const lx=c*CELL_SIZE+CELL_SIZE/2, ly=r*CELL_SIZE+CELL_SIZE/2;
                         const lr=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE;
-                        const g=ctx.createRadialGradient(lx,ly,0,lx,ly,lr);
+                        const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
                         g.addColorStop(0,'rgba(0,0,0,1)');
-                        g.addColorStop(0.7,'rgba(0,0,0,0.85)');
+                        g.addColorStop(0.6,'rgba(0,0,0,0.9)');
                         g.addColorStop(1,'rgba(0,0,0,0)');
-                        ctx.fillStyle=g;
-                        ctx.beginPath();
-                        ctx.arc(lx,ly,lr,0,Math.PI*2);
-                        ctx.fill();
+                        oc.fillStyle=g;
+                        oc.beginPath();
+                        oc.arc(lx,ly,lr,0,Math.PI*2);
+                        oc.fill();
                     }
                 }
-                // 重要：恢复合成模式
-                ctx.globalCompositeOperation='source-over';
+                oc.globalCompositeOperation='source-over';
+                // 将离屏canvas叠加到主画布
+                ctx.drawImage(off,0,0);
             } else {
                 ctx.fillStyle='rgba(200,200,210,0.26)';
                 ctx.fillRect(0,0,canvas.width,canvas.height);
             }
-            ctx.restore();
         }
         if(bossEnemy&&bossEnemy.alive){ const barWidth=200, barHeight=18, barX=canvas.width/2-barWidth/2, barY=10; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barWidth,barHeight); const hpRatio=bossEnemy.hp/bossEnemy.maxHP; ctx.fillStyle=hpRatio>0.5?'#ff4444':hpRatio>0.25?'#ff8800':'#ff0000'; ctx.fillRect(barX,barY,barWidth*hpRatio,barHeight); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(barX,barY,barWidth,barHeight); ctx.fillStyle='#ffffff'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(`${bossEnemy.name} ${Math.floor(bossEnemy.hp)}/${bossEnemy.maxHP}`, canvas.width/2, barY+10); }
         ctx.save();
