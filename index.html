@@ -294,6 +294,7 @@
         boss_dancer:{name:'舞者',emoji:'💃',hp:8000,speed:1.0,armor:20,damage:15,bounty:300,desc:'召唤超级墓碑',tier:5,special:'boss_dancer',color:'#ff69b4'},
         super_tombstone:{name:'超级墓碑',emoji:'🗿',hp:500,speed:0,armor:10,damage:0,bounty:50,desc:'召唤究极怪物',tier:4,special:'super_tombstone',color:'#8b0000'},
         boss_scholar:{name:'学者',emoji:'🎓',hp:3000,speed:0.8,armor:15,damage:8,bounty:200,desc:'免疫同类炮塔伤害',tier:4,special:'boss_scholar',color:'#4169e1'},
+        weather_controller:{name:'天气控制者',emoji:'🌤️',hp:500,speed:0,armor:5,damage:0,bounty:100,desc:'改变天气,2轮后效果消失',tier:3,special:'weather',color:'#88ccff'},
     };
 
     const TOWER_TYPES = {
@@ -314,8 +315,7 @@
         wireNet:{name:'电线网',icon:'🕸️',crystalCost:30,desc:'放置两个端点形成电光束,对湿敌人1.5倍伤害(种植于满级特斯拉线圈上)',dmg:8,dmgPerLvl:1,cd:0.1,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isWireNet:true, requiresMaxed:'tesla'},
         blackhole:{name:'黑洞',icon:'🕳️',cost:100000,crystalCost:3000,desc:'吞噬场上所有怪物(一次性·需100000金币+3000钻石)',dmg:99999,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0, fields:false, isOneShot:true, isSpecial:true},
         fan:{name:'风扇',icon:'🌀',cost:80,desc:'直线攻击击退怪物;前方有水吹水蒸气,有冰箱吹冰雾',dmg:5,dmgPerLvl:3,cd:0.5,cdPerLvl:0,range:8,rangePerLvl:0,fields:false,isFan:true},
-        lamp:{name:'路灯',icon:'💡',cost:40,desc:'驱散迷雾照亮黑暗,升级增大范围',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:3,rangePerLvl:1,fields:false,isLamp:true,noUpgrade:false,maxLvl:15},
-        weather:{name:'天气控制',icon:'🌤️',crystalCost:50,desc:'改变天气,2轮后天气效果消失',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:0,rangePerLvl:0,fields:false,isWeather:true,isSpecial:true}
+        lamp:{name:'路灯',icon:'💡',cost:40,desc:'驱散迷雾照亮黑暗,升级增大范围',dmg:0,dmgPerLvl:0,cd:0,cdPerLvl:0,range:3,rangePerLvl:1,fields:false,isLamp:true,noUpgrade:false,maxLvl:15}
     };
 
     const OBSTACLE_TYPES = {
@@ -442,6 +442,21 @@
                     e.pathIndex=0; e.straightToBase=true;
                     enemies.push(e);
                     spawnParticles(this.x,this.y,'#8b0000',8);
+                }
+                return;
+            }
+            // 天气控制者:不移动,每10秒随机改变天气
+            if(this.special==='weather'){
+                if(this.frozen>0){ this.frozen-=dt; }
+                if(this.burning>0){ this.burning-=dt; this.takeDamage(this.burnDPS*dt,'fire'); }
+                if(this.poisoned>0){ this.poisoned-=dt; this.takeDamage(this.poisonDPS*dt,'poison'); }
+                this.weatherCD=(this.weatherCD||10)-dt;
+                if(this.weatherCD<=0){
+                    this.weatherCD=10;
+                    // 随机改变天气
+                    const types=['sunny','rain','fog','night'];
+                    setWeather(types[Math.floor(Math.random()*types.length)]);
+                    spawnParticles(this.x,this.y,'#88ccff',10);
                 }
                 return;
             }
@@ -740,7 +755,7 @@
             if(cell.towerType==='dynamite' || cell.towerType==='windWall' || cell.towerType==='iceBomb' || cell.towerType==='blackhole'){
                 activateOneShot(cell, r, c); continue;
             }
-            if(cell.towerType==='lamp'||cell.towerType==='weather'||(techLockedTypes&&techLockedTypes.has(cell.towerType))) continue;
+            if(cell.towerType==='lamp'||(techLockedTypes&&techLockedTypes.has(cell.towerType))) continue;
             if(cell.towerType==='wireNet'){ cell.towerAttackCD-=dt; if(cell.towerAttackCD<=0){ cell.towerAttackCD=sacCd||0.1; const pair=cell.wireNetPair; if(pair){ const pr=pair[0], pc=pair[1]; const pcell=grid[pr]?.[pc]; if(pcell&&pcell.type==='tower'&&pcell.towerType==='wireNet'){ const sx=c*CELL_SIZE+12,sy=r*CELL_SIZE+12,ex=pc*CELL_SIZE+12,ey=pr*CELL_SIZE+12; let hitAny=false,hitWet=false; for(const e of enemies){ if(!canTargetEnemy(e))continue; if(distToSegment(e.x,e.y,sx,sy,ex,ey)<CELL_SIZE*0.6){ const wasWet=e.wet>0; e.takeDamage(towerDmg('wireNet',cell),'lightning',r,c); e.shocked=Math.max(e.shocked,1+cell.atkLvl*0.2); hitAny=true; if(wasWet){ hitWet=true; spawnParticles(e.x,e.y,'#ffff00',8); spawnParticles(e.x,e.y,'#88ccff',6); // 连锁闪电:对附近湿敌人也造成伤害
                                     for(const e2 of enemies){ if(!e2.alive||e2===e)continue; if(e2.wet>0&&Math.hypot(e2.x-e.x,e2.y-e.y)<CELL_SIZE*2){ e2.takeDamage(towerDmg('wireNet',cell)*0.5,'lightning'); e2.shocked=Math.max(e2.shocked,1); spawnParticles(e2.x,e2.y,'#ffff00',4); // 连锁闪电视觉
                                             projectiles.push({type:'beam',sx:e.x,sy:e.y,ex:e2.x,ey:e2.y,life:0.2,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.15);ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } } else { spawnParticles(e.x,e.y,'#88ccff',4); } } } if(hitAny){ // 电线网闪电束特效
@@ -1216,8 +1231,6 @@
             const t=TOWER_TYPES[cell.towerType]; if(!t)return;
             // 满级炮塔可种植进阶塔(风暴核心/药水塔/电线网)
             { let _uhtml=''; for(const ut of Object.keys(TOWER_TYPES)){ const utd=TOWER_TYPES[ut]; if(utd.requiresMaxed && utd.requiresMaxed===cell.towerType && isTowerMaxed(cell)){ _uhtml+=`<div class="menu-item" onclick="placeItem(${row},${col},'${ut}','tower');closeMenu()"><span>${utd.icon}种植${utd.name}</span>${towerCostHtml(utd)}</div>`; } } if(_uhtml)menu.innerHTML+=_uhtml; }
-            // 天气控制塔:弹出天气选择
-            if(t.isWeather){ menu.innerHTML+=`<div style="padding:6px;color:#f0c040;font-size:0.75em;">${t.icon} ${t.name}</div>`; const wopts=[{id:'sunny',name:'☀️晴天',d:'无特殊效果'},{id:'rain',name:'🌧️雨天',d:'所有敌人湿润'},{id:'fog',name:'🌫️雾天',d:'炮塔射程-30%'},{id:'night',name:'🌙夜晚',d:'战场变暗,仅路灯可见'}]; for(const o of wopts){ menu.innerHTML+=`<div class="menu-item" onclick="setWeather('${o.id}');closeMenu()"><span>${o.name}</span><small style="color:#888"> ${o.d}</small></div>`; } const refund=getTowerRefund(row,col); menu.innerHTML+=`<div class="menu-item" onclick="removeTower(${row},${col});"><span>🗑铲除</span><span class="cost">+${refund}pt</span></div>`; menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-240)+'px'; return; }
             // 通道建筑血量显示
             if(cell.towerHP<cell.towerMaxHP) menu.innerHTML+=`<div style="padding:4px;color:#ff6644;font-size:0.7em;">❤️炮塔血量: ${Math.ceil(cell.towerHP)}/${cell.towerMaxHP}</div>`;
             // 电线网:特殊菜单(选择连接点+铲除+搬运)
