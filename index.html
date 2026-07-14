@@ -388,8 +388,8 @@
             this.shieldAuraCD=0; this._ultimateBuffed = false; this.bomberCD=0; this.thiefStealCD=0;
             if(this.isBoss||this.isJiawei) bossEnemy=this;
             this.jiaweiSkillCD=0; this.bossSkillCD=0;
-            // 新增:学者免疫炮塔类型记录
-            this.immuneTowerTypes=new Set();
+            // 新增:学者免疫炮塔类型(单一类型)
+            this.immuneTowerType=null;
             // 新增:坦克师开火冷却
             this.tankFireCD=0;
             // 新增:轰炸机召唤/投弹冷却
@@ -450,10 +450,9 @@
                 if(this.frozen>0){ this.frozen-=dt; }
                 if(this.burning>0){ this.burning-=dt; this.takeDamage(this.burnDPS*dt,'fire'); }
                 if(this.poisoned>0){ this.poisoned-=dt; this.takeDamage(this.poisonDPS*dt,'poison'); }
-                this.weatherCD=(this.weatherCD||10)-dt;
-                if(this.weatherCD<=0){
-                    this.weatherCD=10;
-                    // 随机改变天气
+                // 天气控制者:只在出场时设置一次天气,之后不切换(等波次结束或自身死亡)
+                if(!this.weatherSet){
+                    this.weatherSet=true;
                     const types=['sunny','rain','fog','night'];
                     setWeather(types[Math.floor(Math.random()*types.length)]);
                     spawnParticles(this.x,this.y,'#88ccff',10);
@@ -598,12 +597,16 @@
             if(this.flying && type==='physical') return;
             // 贾维:全图抗伤,伤害减少50%
             if(this.isJiawei) amount*=0.5;
-            // 学者:记录攻击它的炮塔类型,同类炮塔后续伤害变为0
+            // 学者:只免疫第一种攻击它的炮塔类型(单一类型),同类炮塔后续伤害变为0
             if(this.isScholar && sourceRow!==undefined && sourceCol!==undefined){
                 const scell=grid[sourceRow]?.[sourceCol];
                 if(scell && scell.type==='tower' && scell.towerType){
-                    if(this.immuneTowerTypes.has(scell.towerType)) return;
-                    this.immuneTowerTypes.add(scell.towerType);
+                    // 如果还没有免疫类型,记录第一种
+                    if(!this.immuneTowerType){
+                        this.immuneTowerType=scell.towerType;
+                    }
+                    // 只有同类型炮塔伤害为0
+                    if(this.immuneTowerType===scell.towerType) return;
                 }
             }
             if(this.special==='reflect'&&Math.random()<this.reflectChance){ if(sourceRow!==undefined&&sourceCol!==undefined){ const cell=grid[sourceRow]?.[sourceCol]; if(cell&&cell.type==='tower'){ cell.stunned=Math.max(cell.stunned,1.2); } } return; }
