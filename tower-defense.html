@@ -1053,35 +1053,89 @@
         // 天气渲染:夜晚(仅路灯可见)与雾天(淡灰覆盖)
         if(weatherType==='night'||weatherType==='fog'){
             if(weatherType==='night'){
-                // 使用离屏canvas处理夜晚遮罩，避免destination-out擦除主画布内容
+                // 夜晚：使用离屏canvas处理黑暗遮罩
                 const off=document.createElement('canvas'); off.width=canvas.width; off.height=canvas.height;
                 const oc=off.getContext('2d');
-                // 画黑色遮罩
-                oc.fillStyle='rgba(5,5,25,0.85)';
+                // 画更黑的遮罩 (0.97 = 几乎全黑)
+                oc.fillStyle='rgba(2,2,8,0.97)';
                 oc.fillRect(0,0,off.width,off.height);
-                // 用destination-out在离屏canvas上抠出路灯照亮区域
+                // destination-out抠出照亮区域
                 oc.globalCompositeOperation='destination-out';
                 for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
                     const cell=grid[r][c];
-                    if(cell.type==='tower'&&cell.towerType==='lamp'){
+                    if(cell.type==='tower'){
                         const lx=c*CELL_SIZE+CELL_SIZE/2, ly=r*CELL_SIZE+CELL_SIZE/2;
-                        const lr=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE;
-                        const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
-                        g.addColorStop(0,'rgba(0,0,0,1)');
-                        g.addColorStop(0.6,'rgba(0,0,0,0.9)');
-                        g.addColorStop(1,'rgba(0,0,0,0)');
-                        oc.fillStyle=g;
-                        oc.beginPath();
-                        oc.arc(lx,ly,lr,0,Math.PI*2);
-                        oc.fill();
+                        // 路灯：主要照明源
+                        if(cell.towerType==='lamp'){
+                            const lr=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE;
+                            const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
+                            g.addColorStop(0,'rgba(0,0,0,1)');
+                            g.addColorStop(0.5,'rgba(0,0,0,0.95)');
+                            g.addColorStop(1,'rgba(0,0,0,0)');
+                            oc.fillStyle=g; oc.beginPath(); oc.arc(lx,ly,lr,0,Math.PI*2); oc.fill();
+                        }
+                        // 风扇：小范围驱散黑暗
+                        if(cell.towerType==='fan'){
+                            const lr=2.5*CELL_SIZE;
+                            const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
+                            g.addColorStop(0,'rgba(0,0,0,0.6)');
+                            g.addColorStop(1,'rgba(0,0,0,0)');
+                            oc.fillStyle=g; oc.beginPath(); oc.arc(lx,ly,lr,0,Math.PI*2); oc.fill();
+                        }
+                        // 风暴核心：中范围驱散黑暗
+                        if(cell.towerType==='storm'){
+                            const lr=4*CELL_SIZE;
+                            const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
+                            g.addColorStop(0,'rgba(0,0,0,0.8)');
+                            g.addColorStop(1,'rgba(0,0,0,0)');
+                            oc.fillStyle=g; oc.beginPath(); oc.arc(lx,ly,lr,0,Math.PI*2); oc.fill();
+                        }
                     }
                 }
                 oc.globalCompositeOperation='source-over';
-                // 将离屏canvas叠加到主画布
                 ctx.drawImage(off,0,0);
-            } else {
-                ctx.fillStyle='rgba(200,200,210,0.26)';
-                ctx.fillRect(0,0,canvas.width,canvas.height);
+            } else if(weatherType==='fog'){
+                // 迷雾：使用离屏canvas处理，更浓的雾
+                const off=document.createElement('canvas'); off.width=canvas.width; off.height=canvas.height;
+                const oc=off.getContext('2d');
+                // 画更浓的迷雾 (0.8 = 几乎看不清)
+                oc.fillStyle='rgba(180,185,195,0.8)';
+                oc.fillRect(0,0,off.width,off.height);
+                // destination-out抠出驱雾区域
+                oc.globalCompositeOperation='destination-out';
+                for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+                    const cell=grid[r][c];
+                    if(cell.type==='tower'){
+                        const lx=c*CELL_SIZE+CELL_SIZE/2, ly=r*CELL_SIZE+CELL_SIZE/2;
+                        // 路灯：驱雾
+                        if(cell.towerType==='lamp'){
+                            const lr=towerEffectiveRange('lamp',(cell.towerLevel||1)-1)*CELL_SIZE;
+                            const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
+                            g.addColorStop(0,'rgba(0,0,0,1)');
+                            g.addColorStop(0.5,'rgba(0,0,0,0.9)');
+                            g.addColorStop(1,'rgba(0,0,0,0)');
+                            oc.fillStyle=g; oc.beginPath(); oc.arc(lx,ly,lr,0,Math.PI*2); oc.fill();
+                        }
+                        // 风扇：驱雾
+                        if(cell.towerType==='fan'){
+                            const lr=towerEffectiveRange('fan',(cell.towerLevel||1)-1)*CELL_SIZE;
+                            const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
+                            g.addColorStop(0,'rgba(0,0,0,0.9)');
+                            g.addColorStop(1,'rgba(0,0,0,0)');
+                            oc.fillStyle=g; oc.beginPath(); oc.arc(lx,ly,lr,0,Math.PI*2); oc.fill();
+                        }
+                        // 风暴核心：驱雾
+                        if(cell.towerType==='storm'){
+                            const lr=5*CELL_SIZE;
+                            const g=oc.createRadialGradient(lx,ly,0,lx,ly,lr);
+                            g.addColorStop(0,'rgba(0,0,0,0.9)');
+                            g.addColorStop(1,'rgba(0,0,0,0)');
+                            oc.fillStyle=g; oc.beginPath(); oc.arc(lx,ly,lr,0,Math.PI*2); oc.fill();
+                        }
+                    }
+                }
+                oc.globalCompositeOperation='source-over';
+                ctx.drawImage(off,0,0);
             }
         }
         if(bossEnemy&&bossEnemy.alive){ const barWidth=200, barHeight=18, barX=canvas.width/2-barWidth/2, barY=10; ctx.fillStyle='#333'; ctx.fillRect(barX,barY,barWidth,barHeight); const hpRatio=bossEnemy.hp/bossEnemy.maxHP; ctx.fillStyle=hpRatio>0.5?'#ff4444':hpRatio>0.25?'#ff8800':'#ff0000'; ctx.fillRect(barX,barY,barWidth*hpRatio,barHeight); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(barX,barY,barWidth,barHeight); ctx.fillStyle='#ffffff'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.fillText(`${bossEnemy.name} ${Math.floor(bossEnemy.hp)}/${bossEnemy.maxHP}`, canvas.width/2, barY+10); }
