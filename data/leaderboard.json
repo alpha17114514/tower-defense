@@ -96,6 +96,14 @@
   ],
   "fortress": [
     {
+      "name": "666",
+      "score": 1055,
+      "kills": 1023,
+      "diff": 32,
+      "date": 1784078832943,
+      "devMode": false
+    },
+    {
       "name": "alpha17",
       "score": 54,
       "kills": 16742,
