@@ -1031,8 +1031,7 @@
             }
         }
         updateUI(); render();
-        // 后台运行:document.hidden时使用setTimeout作为后备,确保后台也能运行
-        if(document.hidden){ setTimeout(()=>gameLoop(performance.now()),16); } else { requestAnimationFrame(gameLoop); }
+        requestAnimationFrame(gameLoop);
     }
 
     function drawTowerRange(cell,row,col){ if(cell.towerType==='mirror'||cell.towerType==='wireNet'||cell.towerType==='weather')return; const tx=col*CELL_SIZE+12, ty=row*CELL_SIZE+12; const type=cell.towerType; ctx.save(); ctx.globalAlpha=0.45; ctx.setLineDash([6,4]); ctx.lineWidth=2; switch(type){ case'arrow': ctx.strokeStyle='rgba(255,255,180,0.7)'; ctx.beginPath(); ctx.moveTo(tx,0); ctx.lineTo(tx,canvas.height); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(canvas.width,ty); ctx.stroke(); break; case'ice': case'tesla': case'potion': case'storm': case'dynamite': case'iceBomb': { const range=towerEffectiveRange(type,cell.rangeLvl)*CELL_SIZE; ctx.strokeStyle='rgba(120,200,255,0.7)'; ctx.beginPath(); ctx.arc(tx,ty,range,0,Math.PI*2); ctx.fill(); ctx.stroke(); break; } case'fire': case'toxic': case'fan': { const dir=cell.towerDirection||[0,1]; const angle=Math.atan2(dir[0],dir[1]); const baseLen=towerEffectiveRange(type,cell.rangeLvl)*CELL_SIZE;
@@ -1298,14 +1297,14 @@
             menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-300)+'px'; return;
         }
         const isFortress=gameMode==='season'&&seasonSubMode==='fortress';
+        const isBesieged=gameMode==='season'&&seasonSubMode==='besieged';
         if(cell.type==='empty'){
-            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
+            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; if(isBesieged&&(t==='fan'||t==='storm'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if((td.isWireNet||td.isMirror)&&!td.requiresMaxed){ menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isOneShot){ if(isFortress)return; menu.innerHTML += `<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
         }
         if(cell.isPath && cell.type==='path'){
-            Object.keys(OBSTACLE_TYPES).forEach(t=>{ const obs=OBSTACLE_TYPES[t]; if(!isObstacleUnlocked(t))return; if(isFortress&&t==='mine')return; let costHtml=obs.crystalCost?`<span class="crystal-cost">💎${obs.crystalCost}</span>`:`<span class="cost">${obsCost(t)}pt</span>`; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','obstacle');closeMenu()"><span>${obs.icon}${obs.name}</span>${costHtml}</div>`; });
-            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}<small style="color:#ff6'> ❗通道建筑</small></span>${towerCostHtml(td)}</div>`; } });
+            Object.keys(OBSTACLE_TYPES).forEach(t=>{ const obs=OBSTACLE_TYPES[t]; if(!isObstacleUnlocked(t))return; if(isFortress&&t==='mine')return; if(isBesieged&&(t==='spring'||t==='confusion'))return; let costHtml=obs.crystalCost?`<span class="crystal-cost">💎${obs.crystalCost}</span>`:`<span class="cost">${obsCost(t)}pt</span>`; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','obstacle');closeMenu()"><span>${obs.icon}${obs.name}</span>${costHtml}</div>`; });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isOneShot){ if(isFortress)return; menu.innerHTML += `<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
         }
         // 开发者模式:放置怪物
@@ -1833,7 +1832,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             generateRingPath(); gamePhase='defense'; waveActive=false; waveBreakTimer=0;
         } else if(seasonSubMode==='besieged'){
             baseHP=200; maxBaseHP=200; points=300; crystals=50; waveNumber=1;
-            generateBesiegedPaths(); gamePhase='defense'; waveActive=false; waveBreakTimer=0; waveBreakDuration=3;
+            generateBesiegedPaths(); gamePhase='defense'; waveActive=false; waveBreakTimer=0; waveBreakDuration=10;
         } else if(seasonSubMode==='fortress'){
             baseHP=300; maxBaseHP=300; points=3000; crystals=600; waveNumber=1;
             initGrid(); gamePhase='digging'; fortressPhase='digging'; waveActive=false; waveBreakTimer=0;
@@ -2067,6 +2066,15 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
     loadCurrentUser();
     // 首次打开显示最新公告
     if(!localStorage.getItem('td_announcement_seen')||localStorage.getItem('td_announcement_seen')!==ANNOUNCEMENTS[0].version){ localStorage.setItem('td_announcement_seen',ANNOUNCEMENTS[0].version); setTimeout(()=>showAnnouncements(),500); }
+    // 后台运行:Web Worker不被浏览器节流
+    try {
+        const _workerCode='setInterval(()=>postMessage(0),50);';
+        const _blob=new Blob([_workerCode],{type:'application/javascript'});
+        const _bgWorker=new Worker(URL.createObjectURL(_blob));
+        _bgWorker.onmessage=()=>{
+            if(document.hidden){ gameLoop(performance.now()); }
+        };
+    } catch(e){ console.log('Web Worker not supported:',e); }
     initGrid(); requestAnimationFrame(gameLoop); updateSpeedButtons(); updateUI();
 </script>
 </body>
