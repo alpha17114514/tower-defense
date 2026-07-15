@@ -344,15 +344,13 @@
 
     function countPathNeighbors(r,c){ let n=0; for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath)n++; } return n; }
     function getPathNeighbors(r,c){ const res=[]; for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath)res.push([nr,nc]); } return res; }
-    function canDig(r,c){ if(grid[r][c].isPath||grid[r][c].type==='tower'||grid[r][c].type==='obstacle')return false; if(gameMode==='season'&&seasonSubMode==='besieged')return true; /* 四面楚歌:玩家自由挖通道,不受相邻限制 */ const nb=getPathNeighbors(r,c); if(nb.length>2||nb.length===0)return false; for(const [nr,nc] of nb)if(grid[nr][nc].pathConnections+1>2)return false; if(nb.length===2){ const [n1,n2]=nb; if(arePathCellsConnected(n1[0],n1[1],n2[0],n2[1],r,c))return false; } return true; }
+    function canDig(r,c){ if(grid[r][c].isPath||grid[r][c].type==='tower'||grid[r][c].type==='obstacle')return false; const nb=getPathNeighbors(r,c); if(nb.length>2||nb.length===0)return false; for(const [nr,nc] of nb)if(grid[nr][nc].pathConnections+1>2)return false; if(nb.length===2){ const [n1,n2]=nb; if(arePathCellsConnected(n1[0],n1[1],n2[0],n2[1],r,c))return false; } return true; }
     function arePathCellsConnected(r1,c1,r2,c2,er,ec){ const vis=new Set(); const q=[[r1,c1]]; vis.add(`${r1},${c1}`); while(q.length){ const [cr,cc]=q.shift(); if(cr===r2&&cc===c2)return true; for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=cr+dr,nc=cc+dc; if(nr===er&&nc===ec)continue; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath&&!vis.has(`${nr},${nc}`)){ vis.add(`${nr},${nc}`); q.push([nr,nc]); } } } return false; }
     function digCell(r,c){ if(!canDig(r,c))return false; grid[r][c].type='path'; grid[r][c].isPath=true; grid[r][c].pathConnections=countPathNeighbors(r,c); for(const [nr,nc] of getPathNeighbors(r,c))grid[nr][nc].pathConnections=countPathNeighbors(nr,nc); grid[START_ROW][START_COL].pathConnections=countPathNeighbors(START_ROW,START_COL); grid[END_ROW][END_COL].pathConnections=countPathNeighbors(END_ROW,END_COL); return true; }
     function checkStartEndConnected(){ const vis=new Set(); const q=[[START_ROW,START_COL]]; vis.add(`${START_ROW},${START_COL}`); while(q.length){ const [cr,cc]=q.shift(); if(cr===END_ROW&&cc===END_COL)return true; for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=cr+dr,nc=cc+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath&&!vis.has(`${nr},${nc}`)){ vis.add(`${nr},${nc}`); q.push([nr,nc]); } } } return false; }
     function computePathCorners(){ pathCorners=[]; if(pathOrder.length<2)return; pathCorners.push(0); for(let i=1;i<pathOrder.length-1;i++){ const [pr,pc]=pathOrder[i-1]; const [cr,cc]=pathOrder[i]; const [nr,nc]=pathOrder[i+1]; if((cr-pr)!==(nr-cr)||(cc-pc)!==(nc-cc)) pathCorners.push(i); } pathCorners.push(pathOrder.length-1); }
     function computePathOrder(){ const vis=new Set(); const parent={}; const q=[[START_ROW,START_COL]]; vis.add(`${START_ROW},${START_COL}`); let found=false; while(q.length&&!found){ const [cr,cc]=q.shift(); if(cr===END_ROW&&cc===END_COL){found=true;break;} for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=cr+dr,nc=cc+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath&&!vis.has(`${nr},${nc}`)){ vis.add(`${nr},${nc}`); parent[`${nr},${nc}`]=[cr,cc]; q.push([nr,nc]); } } } pathOrder=[]; if(found){ let cur=[END_ROW,END_COL]; while(cur){ pathOrder.unshift(cur); cur=parent[`${cur[0]},${cur[1]}`]||null; } } if(pathOrder.length>0) computePathCorners(); return pathOrder.length>0; }
-    function startDefensePhase(){ if(!checkStartEndConnected()||!computePathOrder())return; if(gameMode==='season'&&(seasonSubMode==='fortress'||seasonSubMode==='besieged')&&fortressPhase==='digging'){ return; /* 坚不可摧/四面楚歌:挖通后不自动开始,需手动点击基地的"开始攻打"按钮 */ } gamePhase='defense'; waveNumber=0; waveActive=false; waveBreakTimer=2; updateUI(); }
-    // 四面楚歌:检测所有入口是否连通到中心基地
-    function checkBesiegedConnected(){ const cr=Math.floor(ROWS/2), cc=Math.floor(COLS/2); if(!grid[cr]||!grid[cr][cc]||!grid[cr][cc].isPath)return false; for(const [er,ec] of seasonEntryPoints){ if(!grid[er]||!grid[er][ec]||!grid[er][ec].isPath)return false; const vis=new Set(); const q=[[er,ec]]; vis.add(`${er},${ec}`); let found=false; while(q.length){ const [r,c]=q.shift(); if(r===cr&&c===cc){found=true;break;} for(const [dr,dc] of[[-1,0],[1,0],[0,-1],[0,1]]){ const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc].isPath&&!vis.has(`${nr},${nc}`)){ vis.add(`${nr},${nc}`); q.push([nr,nc]); } } } if(!found)return false; } return true; }
+    function startDefensePhase(){ if(!checkStartEndConnected()||!computePathOrder())return; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ return; /* 坚不可摧:挖通后不自动开始,需手动点击基地的"开始攻打"按钮 */ } gamePhase='defense'; waveNumber=0; waveActive=false; waveBreakTimer=2; updateUI(); }
 
     function damageBase(amount, sourceName){
         const dmg = Math.max(0, amount);
@@ -982,21 +980,14 @@
                     for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
                 }
             } else if(seasonSubMode==='besieged'){
-                if(gamePhase==='digging'){
-                    // 布阵/休息阶段:只更新粒子,不刷怪不战斗,允许玩家挖通道与建造
-                    for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
-                    // 波间休息倒计时(休息时waveBreakTimer>0),结束则进入下一波
-                    if(waveBreakTimer>0){ waveBreakTimer-=dt; if(waveBreakTimer<=0){ fortressPhase='defense'; gamePhase='defense'; waveActive=true; seasonWaveTimer=0; seasonSpawnTimer=0; seasonBossTimer=0; waveNumber++; updateSeasonHUD(); } }
-                } else { // defense:出怪与战斗
-                    seasonTimer+=dt;
-                    seasonDifficulty=1+Math.floor(waveNumber/5);
-                    baseIncomeTimer+=dt; if(baseIncomeTimer>=1){ baseIncomeTimer-=1; let income=baseUpgrades.goldGen*0.5; if(income>0)clampPoints(income); }
-                    processSeasonSpawning(dt); processTowers(dt); processObstacles(dt);
-                    for(const e of enemies) if(e.alive||e.reachedEnd) e.update(dt); enemies=enemies.filter(e=>e.alive||(e.reachedEnd&&e.removeTimer>0));
-                    for(const a of allies)a.update(dt); allies=allies.filter(a=>a.alive);
-                    for(const p of projectiles)p.update(dt); projectiles=projectiles.filter(p=>p.alive);
-                    for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
-                }
+                seasonTimer+=dt;
+                seasonDifficulty=1+Math.floor(waveNumber/5);
+                baseIncomeTimer+=dt; if(baseIncomeTimer>=1){ baseIncomeTimer-=1; let income=baseUpgrades.goldGen*0.5; if(income>0)clampPoints(income); }
+                processSeasonSpawning(dt); processTowers(dt); processObstacles(dt);
+                for(const e of enemies) if(e.alive||e.reachedEnd) e.update(dt); enemies=enemies.filter(e=>e.alive||(e.reachedEnd&&e.removeTimer>0));
+                for(const a of allies)a.update(dt); allies=allies.filter(a=>a.alive);
+                for(const p of projectiles)p.update(dt); projectiles=projectiles.filter(p=>p.alive);
+                for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
             } else if(seasonSubMode==='fortress'){
                 if(fortressPhase==='digging'){
                     // 挖通道阶段:不更新敌人/炮塔,只更新粒子
@@ -1258,7 +1249,7 @@
             selectionStartRow=-1; selectionEndRow=-1; return;
         }
         // 触摸端:仅点击(非拖动)时弹出菜单
-        if(_pointerIsTouch&&lastTouchDist<5&&!quickUpgradeMode&&(gamePhase==='defense'||gamePhase==='digging')){ const col=Math.floor(mouseCanvasX/CELL_SIZE), row=Math.floor(mouseCanvasY/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ if(gamePhase==='digging'){ if(gameMode==='season'&&seasonSubMode==='besieged'){ closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); return; } if(row===END_ROW&&col===END_COL){ showBaseMenu(mouseCanvasX,mouseCanvasY); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mouseCanvasX,mouseCanvasY); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); } }
+        if(_pointerIsTouch&&lastTouchDist<5&&!quickUpgradeMode&&(gamePhase==='defense'||gamePhase==='digging')){ const col=Math.floor(mouseCanvasX/CELL_SIZE), row=Math.floor(mouseCanvasY/CELL_SIZE); if(row>=0&&row<ROWS&&col>=0&&col<COLS){ if(gamePhase==='digging'){ if(row===END_ROW&&col===END_COL){ showBaseMenu(mouseCanvasX,mouseCanvasY); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mouseCanvasX,mouseCanvasY); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } closeMenu(); handleCellClick(row,col,mouseCanvasX,mouseCanvasY); } }
         mouseDown=false; }
     canvas.addEventListener('mousedown',handleDown); canvas.addEventListener('mousemove',handleMove); canvas.addEventListener('mouseup',handleUp);
     canvas.addEventListener('mouseleave',()=>{ mouseDown=false; }); canvas.addEventListener('touchstart',handleDown,{passive:false}); canvas.addEventListener('touchmove',handleMove,{passive:false}); canvas.addEventListener('touchend',handleUp); canvas.addEventListener('touchcancel',handleUp);
@@ -1268,14 +1259,14 @@
             // 普通模式(非赛季)需要第5波解锁，赛季模式随时可用
             if(gameMode!=='season'&&waveNumber<5){ alert('普通模式献祭功能在第5波解锁'); return; }
             const cell=grid[row][col]; if(cell&&cell.type==='tower'){ sacrificeAndRefund(row,col); } return; }
-        if(gamePhase==='digging'){ if(gameMode==='season'&&seasonSubMode==='besieged'){ handleCellClick(row,col,mx,my); return; } if(row===END_ROW&&col===END_COL){ showBaseMenu(mx,my); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mx,my); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } handleCellClick(row,col,mx,my); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; }
+        if(gamePhase==='digging'){ if(row===END_ROW&&col===END_COL){ showBaseMenu(mx,my); return; } if(row===START_ROW&&col===START_COL){ showEntranceMenu(mx,my); return; } const cell=grid[row][col]; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ if(cell.isPath||cell.type==='path'){ if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; } handleCellClick(row,col,mx,my); return; } if(digCell(row,col)&&checkStartEndConnected())startDefensePhase(); return; }
         handleCellClick(row,col,mx,my); });
     function handleCellClick(row,col,mx,my){
         // 搬运炮塔:放置
         if(movingTower){ placeMovedTower(row,col); return; }
         // 电线网配对
         if(window._wireNetSource){ const cell=grid[row][col]; if(cell.type==='empty'&&!cell.isPath){ const src=window._wireNetSource; const srcCell=grid[src[0]][src[1]]; if(srcCell&&srcCell.type==='tower'&&srcCell.towerType==='wireNet'){ if(!devMode&&crystals<TOWER_TYPES.wireNet.crystalCost){ alert('💎水晶不足！需要'+TOWER_TYPES.wireNet.crystalCost+'水晶连接电线网'); cancelWireNetPair(); return; } if(!devMode)crystals-=TOWER_TYPES.wireNet.crystalCost; srcCell.wireNetPair=[row,col]; cell.type='tower'; cell.towerType='wireNet'; cell.towerLevel=1; cell.wireNetPair=[src[0],src[1]]; cell.towerMaxHP=100; cell.towerHP=100; spawnParticles(col*CELL_SIZE+12,row*CELL_SIZE+12,'#88ccff',12); } } window._wireNetSource=null; const h=document.getElementById('wireNetHint'); if(h)h.remove(); closeMenu(); updateUI(); return; }
-        if(gameMode==='season'&&seasonSubMode==='besieged'){ const cr=Math.floor(ROWS/2), cc=Math.floor(COLS/2); if(row===cr&&col===cc){ showBaseMenu(mx,my); return; } for(const ep of seasonEntryPoints){ if(row===ep[0]&&col===ep[1])return; } }
+        if(gameMode==='season'&&seasonSubMode==='besieged'){ const cr=Math.floor(ROWS/2), cc=Math.floor(COLS/2); if(row===cr&&col===cc){ return; } for(const ep of seasonEntryPoints){ if(row===ep[0]&&col===ep[1])return; } }
         if(gameMode==='season'&&pathOrder.length>=2&&seasonSubMode!=='besieged'){ const [sr,sc]=pathOrder[0]; const [er,ec]=pathOrder[pathOrder.length-1]; if(row===sr&&col===sc){ showEntranceMenu(mx,my); return; } if(row===er&&col===ec){ showBaseMenu(mx,my); return; } }
         if(row===START_ROW&&col===START_COL){ showEntranceMenu(mx,my); return; }
         if(row===END_ROW&&col===END_COL){ showBaseMenu(mx,my); return; }
@@ -1293,7 +1284,7 @@
         html+='<button onclick="document.getElementById(\'modalContainer\').innerHTML=\'\'">关闭</button></div></div>';
         document.getElementById('modalContainer').innerHTML=html;
     }
-    function showBaseMenu(mx,my){ const menu=document.getElementById('context-menu'); menu.innerHTML=''; if(gameMode==='season'&&(seasonSubMode==='fortress'||seasonSubMode==='besieged')&&fortressPhase==='digging'){ menu.innerHTML+=`<div class="menu-item" onclick="startFortressDefense();closeMenu()" style="background:#224422;"><span>⚔️开始攻打</span></div>`; menu.innerHTML+=`<div style="padding:4px;font-size:0.7em;color:#aaa;">挖通通道并布阵后点击开始</div>`; } else { menu.innerHTML+=`<div class="menu-item" onclick="upgradeBaseToughness();closeMenu()"><span>🛡️升级韧性 Lv${baseUpgrades.toughness}/10</span><span class="cost">${100+baseUpgrades.toughness*80}pt</span></div>`; menu.innerHTML+=`<div class="menu-item" onclick="upgradeBaseGold();closeMenu()"><span>💰金币产出 Lv${baseUpgrades.goldGen}/10</span><span class="cost">${150+baseUpgrades.goldGen*100}pt</span></div>`; menu.innerHTML+=`<div class="menu-item" onclick="buyBaseTotem();closeMenu()"><span>🗿不死图腾(${baseTotems})</span><span class="crystal-cost">💎200</span></div>`; } if(devMode)menu.innerHTML+=`<div class="menu-item" onclick="showDevDamageLog();closeMenu()"><span>📊查看伤害记录</span></div>`; menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-200)+'px'; }
+    function showBaseMenu(mx,my){ const menu=document.getElementById('context-menu'); menu.innerHTML=''; if(gameMode==='season'&&seasonSubMode==='fortress'&&fortressPhase==='digging'){ menu.innerHTML+=`<div class="menu-item" onclick="startFortressDefense();closeMenu()" style="background:#224422;"><span>⚔️开始攻打</span></div>`; menu.innerHTML+=`<div style="padding:4px;font-size:0.7em;color:#aaa;">挖通通道并布阵后点击开始</div>`; } else { menu.innerHTML+=`<div class="menu-item" onclick="upgradeBaseToughness();closeMenu()"><span>🛡️升级韧性 Lv${baseUpgrades.toughness}/10</span><span class="cost">${100+baseUpgrades.toughness*80}pt</span></div>`; menu.innerHTML+=`<div class="menu-item" onclick="upgradeBaseGold();closeMenu()"><span>💰金币产出 Lv${baseUpgrades.goldGen}/10</span><span class="cost">${150+baseUpgrades.goldGen*100}pt</span></div>`; menu.innerHTML+=`<div class="menu-item" onclick="buyBaseTotem();closeMenu()"><span>🗿不死图腾(${baseTotems})</span><span class="crystal-cost">💎200</span></div>`; } if(devMode)menu.innerHTML+=`<div class="menu-item" onclick="showDevDamageLog();closeMenu()"><span>📊查看伤害记录</span></div>`; menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-200)+'px'; }
     function upgradeBaseToughness(){ if(baseUpgrades.toughness>=10)return; let cost=100+baseUpgrades.toughness*80; if(devMode||points>=cost){ if(!devMode)points-=cost; baseUpgrades.toughness++; maxBaseHP=100+baseUpgrades.toughness*20; baseHP=Math.min(baseHP+20,maxBaseHP); updateUI(); } }
     function upgradeBaseGold(){ if(baseUpgrades.goldGen>=10)return; let cost=150+baseUpgrades.goldGen*100; if(devMode||points>=cost){ if(!devMode)points-=cost; baseUpgrades.goldGen++; updateUI(); } }
     function buyBaseTotem(){ if(devMode||crystals>=200){ if(!devMode)crystals-=200; baseTotems++; updateUI(); } }
@@ -1307,15 +1298,14 @@
             menu.style.display='block'; menu.style.left=Math.min(mx,window.innerWidth-180)+'px'; menu.style.top=Math.min(my,window.innerHeight-300)+'px'; return;
         }
         const isFortress=gameMode==='season'&&seasonSubMode==='fortress';
-        const isBesieged=gameMode==='season'&&seasonSubMode==='besieged';
         if(cell.type==='empty'){
-            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; if(isBesieged&&(t==='fan'||t==='storm'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
+            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if((td.isWireNet||td.isMirror)&&!td.requiresMaxed){ menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isOneShot){ if(isFortress)return; menu.innerHTML += `<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
         }
         if(cell.isPath && cell.type==='path'){
-            Object.keys(OBSTACLE_TYPES).forEach(t=>{ const obs=OBSTACLE_TYPES[t]; if(!isObstacleUnlocked(t))return; if(isFortress&&t==='mine')return; if(isBesieged&&(t==='spring'||t==='confusion'))return; let costHtml=obs.crystalCost?`<span class="crystal-cost">💎${obs.crystalCost}</span>`:`<span class="cost">${obsCost(t)}pt</span>`; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','obstacle');closeMenu()"><span>${obs.icon}${obs.name}</span>${costHtml}</div>`; });
-            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; if(isBesieged&&(t==='fan'||t==='storm'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}<small style="color:#ff6'> ❗通道建筑</small></span>${towerCostHtml(td)}</div>`; } });
+            Object.keys(OBSTACLE_TYPES).forEach(t=>{ const obs=OBSTACLE_TYPES[t]; if(!isObstacleUnlocked(t))return; if(isFortress&&t==='mine')return; let costHtml=obs.crystalCost?`<span class="crystal-cost">💎${obs.crystalCost}</span>`:`<span class="cost">${obsCost(t)}pt</span>`; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','obstacle');closeMenu()"><span>${obs.icon}${obs.name}</span>${costHtml}</div>`; });
+            Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(!td.isOneShot && !td.isWireNet && !td.isMirror && !td.requiresMaxed && !(techLockedTypes&&techLockedTypes.has(t)) && isTowerUnlocked(t)){ if(isFortress&&(t==='mine'||t==='repair'))return; menu.innerHTML+=`<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}<small style="color:#ff6'> ❗通道建筑</small></span>${towerCostHtml(td)}</div>`; } });
             Object.keys(TOWER_TYPES).forEach(t=>{ const td=TOWER_TYPES[t]; if(td.isOneShot){ if(isFortress)return; menu.innerHTML += `<div class="menu-item" onclick="placeItem(${row},${col},'${t}','tower');closeMenu()"><span>${td.icon}${td.name}</span>${towerCostHtml(td)}</div>`; } });
         }
         // 开发者模式:放置怪物
@@ -1359,11 +1349,11 @@
     }
     window.placeRandomBox=placeRandomBox;
     function showBuildingMenu(mx,my,row,col){
-        const cell=grid[row][col]; const menu=document.getElementById('context-menu'); menu.innerHTML=''; const isBesieged=gameMode==='season'&&seasonSubMode==='besieged';
+        const cell=grid[row][col]; const menu=document.getElementById('context-menu'); menu.innerHTML='';
         if(cell.type==='tower'){
             const t=TOWER_TYPES[cell.towerType]; if(!t)return;
             // 满级炮塔可种植进阶塔(风暴核心/药水塔/电线网)
-            { let _uhtml=''; for(const ut of Object.keys(TOWER_TYPES)){ const utd=TOWER_TYPES[ut]; if(utd.requiresMaxed && utd.requiresMaxed===cell.towerType && isTowerMaxed(cell) && !(isBesieged&&ut==='storm')){ _uhtml+=`<div class="menu-item" onclick="placeItem(${row},${col},'${ut}','tower');closeMenu()"><span>${utd.icon}种植${utd.name}</span>${towerCostHtml(utd)}</div>`; } } if(_uhtml)menu.innerHTML+=_uhtml; }
+            { let _uhtml=''; for(const ut of Object.keys(TOWER_TYPES)){ const utd=TOWER_TYPES[ut]; if(utd.requiresMaxed && utd.requiresMaxed===cell.towerType && isTowerMaxed(cell)){ _uhtml+=`<div class="menu-item" onclick="placeItem(${row},${col},'${ut}','tower');closeMenu()"><span>${utd.icon}种植${utd.name}</span>${towerCostHtml(utd)}</div>`; } } if(_uhtml)menu.innerHTML+=_uhtml; }
             // 通道建筑血量显示
             if(cell.towerHP<cell.towerMaxHP) menu.innerHTML+=`<div style="padding:4px;color:#ff6644;font-size:0.7em;">❤️炮塔血量: ${Math.ceil(cell.towerHP)}/${cell.towerMaxHP}</div>`;
             // 电线网:特殊菜单(选择连接点+铲除+搬运)
@@ -1817,14 +1807,21 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         computePathCorners(); }
     // 四面楚歌:生成四条路径分别到中心
     function generateBesiegedPaths(){ initGrid(); const cr=Math.floor(ROWS/2), cc=Math.floor(COLS/2);
-        // 只设置中心基地与四个入口,不自动铺通道(玩家自己挖)
-        grid[cr][cc].type='path'; grid[cr][cc].isPath=true;
-        seasonEntryPoints=[[cr,0],[cr,COLS-1],[0,cc],[ROWS-1,cc]];
-        for(const [er,ec] of seasonEntryPoints){ grid[er][ec].type='path'; grid[er][ec].isPath=true; }
+        // 四条直线通道汇聚到中心
+        for(let c=1;c<cc;c++){ grid[cr][c].type='path'; grid[cr][c].isPath=true; } // 左→中
+        for(let c=cc+1;c<COLS-1;c++){ grid[cr][c].type='path'; grid[cr][c].isPath=true; } // 中→右
+        for(let r=1;r<cr;r++){ grid[r][cc].type='path'; grid[r][cc].isPath=true; } // 上→中
+        for(let r=cr+1;r<ROWS-1;r++){ grid[r][cc].type='path'; grid[r][cc].isPath=true; } // 中→下
+        grid[cr][cc].type='path'; grid[cr][cc].isPath=true; // 中心=基地
         for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c].isPath)grid[r][c].pathConnections=countPathNeighbors(r,c);
-        pathOrder=[[cr,cc]];
-        computePathCorners();
-    }
+        // 四个入口点
+        seasonEntryPoints=[[cr,0],[cr,COLS-1],[0,cc],[ROWS-1,cc]];
+        // pathOrder:包含所有四条路径(左/右/上/下各一条到中心)
+        pathOrder=[]; for(let c=0;c<=cc;c++)pathOrder.push([cr,c]);
+        pathOrder.push([cr,COLS-1]); for(let c=COLS-2;c>cc;c--)pathOrder.push([cr,c]); // 右→中
+        pathOrder.push([0,cc]); for(let r=1;r<=cr;r++)pathOrder.push([r,cc]); // 上→中
+        pathOrder.push([ROWS-1,cc]); for(let r=ROWS-2;r>cr;r--)pathOrder.push([r,cc]); // 下→中
+        computePathCorners(); }
     function initSeasonMode(){
         seasonTimer=seasonMaxTime; seasonScore=0; seasonKills=0; seasonDifficulty=1; seasonSpawnTimer=0; seasonBossTimer=0; seasonActive=true; seasonEntryPoints=[];
         bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0};
@@ -1836,7 +1833,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             generateRingPath(); gamePhase='defense'; waveActive=false; waveBreakTimer=0;
         } else if(seasonSubMode==='besieged'){
             baseHP=200; maxBaseHP=200; points=300; crystals=50; waveNumber=1;
-            generateBesiegedPaths(); gamePhase='digging'; fortressPhase='digging'; waveActive=false; waveBreakTimer=0; waveBreakDuration=10;
+            generateBesiegedPaths(); gamePhase='defense'; waveActive=false; waveBreakTimer=0; waveBreakDuration=3;
         } else if(seasonSubMode==='fortress'){
             baseHP=300; maxBaseHP=300; points=3000; crystals=600; waveNumber=1;
             initGrid(); gamePhase='digging'; fortressPhase='digging'; waveActive=false; waveBreakTimer=0;
@@ -1876,8 +1873,8 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                 }
                 // Boss每10波出现1次(从随机入口)
                 seasonBossTimer+=dt; if(seasonBossTimer>=60&&waveNumber>=10){ seasonBossTimer=0; const bt=['boss','boss_bomber'][Math.floor(Math.random()*2)]; const e=new Enemy(bt, Math.max(5,waveNumber*2)); e.pathIndex=0; e.straightToBase=true; const ep=seasonEntryPoints[Math.floor(Math.random()*4)]; e.x=ep[1]*CELL_SIZE+12; e.y=ep[0]*CELL_SIZE+12; e.subX=e.x; e.subY=e.y; enemies.push(e); }
-                // 波次持续25秒后且无存活敌人时结束,进入休息(布阵)阶段,玩家可挖通道/建造
-                if(seasonWaveTimer>=25&&enemies.filter(e=>e.alive&&!e.reachedEnd).length===0){ waveActive=false; waveBreakTimer=waveBreakDuration; enemies=enemies.filter(e=>e.alive); fortressPhase='digging'; gamePhase='digging'; updateSeasonHUD(); }
+                // 波次持续25秒后或所有怪死后结束
+                if(seasonWaveTimer>=25&&enemies.filter(e=>e.alive&&!e.reachedEnd).length===0){ waveActive=false; waveBreakTimer=waveBreakDuration; }
             } else { waveBreakTimer-=dt; }
         } else if(seasonSubMode==='fortress'){
             // 坚不可摧:标准波次制
@@ -1899,17 +1896,11 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             }
         }
     }
-    // 坚不可摧/四面楚歌:开始防守阶段
+    // 坚不可摧:开始防守阶段
     function startFortressDefense(){
-        if(!(gameMode==='season'&&(seasonSubMode==='fortress'||seasonSubMode==='besieged')&&fortressPhase==='digging'))return;
-        if(seasonSubMode==='besieged'){
-            if(!checkBesiegedConnected())return; // 四面楚歌:需所有入口连通到中心基地
-            computePathOrder(); // 计算路径(直线敌人不依赖,但保留供其它逻辑使用)
-        } else {
-            if(!checkStartEndConnected()||!computePathOrder())return;
-            waveBreakDuration=3;
-        }
-        fortressPhase='defense'; gamePhase='defense'; waveActive=false; waveBreakTimer=2;
+        if(seasonSubMode!=='fortress'||fortressPhase!=='digging')return;
+        if(!checkStartEndConnected()||!computePathOrder())return;
+        fortressPhase='defense'; gamePhase='defense'; waveActive=false; waveBreakTimer=2; waveBreakDuration=3;
         if(waveNumber===0)waveNumber=1; // 首次开始
         updateUI(); updateSeasonHUD();
     }
@@ -1928,11 +1919,10 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             document.getElementById('season-kills').textContent=seasonKills;
             document.getElementById('season-difficulty').textContent=Math.floor(baseHP)+'HP';
         } else if(seasonSubMode==='besieged'){
-            const phaseText=fortressPhase==='digging'?'布阵中':`波${waveNumber}`;
-            document.getElementById('season-timer').textContent=fortressPhase==='digging'?(waveBreakTimer>0?`休息${Math.ceil(waveBreakTimer)}s`:'布阵'):`${m}:${s.toString().padStart(2,'0')}`;
+            document.getElementById('season-timer').textContent=`${m}:${s.toString().padStart(2,'0')}`;
             document.getElementById('season-score').textContent=`波${waveNumber}`;
             document.getElementById('season-kills').textContent=seasonKills;
-            document.getElementById('season-difficulty').textContent=phaseText;
+            document.getElementById('season-difficulty').textContent=Math.floor(baseHP)+'HP';
         } else if(seasonSubMode==='fortress'){
             const phaseText=fortressPhase==='digging'?'布阵中':`波${waveNumber}`;
             document.getElementById('season-timer').textContent=fortressPhase==='digging'?'布阵':`${m}:${s.toString().padStart(2,'0')}`;
