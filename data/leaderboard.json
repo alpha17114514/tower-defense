@@ -92,6 +92,14 @@
       "kills": 0,
       "diff": 1,
       "date": 1783662970409
+    },
+    {
+      "name": "TRAE",
+      "score": 2,
+      "kills": 0,
+      "diff": 2,
+      "date": 1784111629842,
+      "devMode": false
     }
   ],
   "fortress": [
