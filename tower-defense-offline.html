@@ -103,7 +103,7 @@
 <nav class="navbar">
   <div class="navbar-left"><span class="navbar-title">🛡️ 通道塔防</span><div class="dropdown" id="saveDropdown"><button class="dropdown-btn" id="dropdownToggle">💾 存档管理</button><div class="dropdown-menu" id="dropdownMenu"><div style="padding:8px;display:flex;justify-content:space-between;"><span style="color:#f0c040;">📁 我的存档</span><button class="nav-btn" id="btnCreateNewSave">＋ 新存档</button></div><div id="saveListContainer" style="display:flex;flex-direction:column;gap:4px;"></div></div></div></div>
   <div class="navbar-info"><span>❤️ <span class="val-danger" id="info-hp">100</span></span><span>💰 <span class="val-gold" id="info-points">20</span></span><span>💎 <span class="val-crystal" id="info-crystals">0</span></span><span>🌊 <span id="info-wave">准备中</span></span><span>⏱ <span id="info-timer">-</span></span><span>📡 <span id="info-phase">挖掘</span></span><span>🏆 <span id="info-boss-buffs" style="color:#f0c040;"></span></span></div>
-  <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><button class="nav-btn active-speed" onclick="setSpeed(0.5)" id="btn-sp05">0.5x</button><button class="nav-btn" onclick="setSpeed(1)" id="btn-sp1">1x</button><button class="nav-btn" onclick="setSpeed(2)" id="btn-sp2">2x</button><button class="nav-btn" onclick="setSpeed(5)" id="btn-sp5">5x</button><div class="custom-speed"><input type="number" id="custom-speed-input" value="1" min="0.1" max="20" step="0.1" style="width:45px;"><button class="nav-btn" onclick="setCustomSpeed()">⚡自定义</button></div><button class="nav-btn active-mode" id="btn-operation" onclick="cycleOperationMode()">🖱️普通</button><button class="nav-btn" onclick="skipWaveBreak()" id="skip-wave-btn" style="display:none;">⏩下一波</button><button class="nav-btn" onclick="clearSelection()">✖取消</button><button class="nav-btn" onclick="openInstructions()">📋说明书</button><button class="nav-btn" id="btn-dev" onclick="toggleDevMode()">🔐开发者</button><button class="nav-btn" id="btn-back-menu" onclick="backToMenu()" style="display:none;">🏠返回菜单</button></div>
+  <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;"><button class="nav-btn active-speed" onclick="setSpeed(0.5)" id="btn-sp05">0.5x</button><button class="nav-btn" onclick="setSpeed(1)" id="btn-sp1">1x</button><button class="nav-btn" onclick="setSpeed(2)" id="btn-sp2">2x</button><button class="nav-btn" onclick="setSpeed(5)" id="btn-sp5">5x</button><div class="custom-speed"><input type="number" id="custom-speed-input" value="1" min="0.1" max="20" step="0.1" style="width:45px;"><button class="nav-btn" onclick="setCustomSpeed()">⚡自定义</button></div><button class="nav-btn active-mode" id="btn-operation" onclick="cycleOperationMode()">🖱️普通</button><button class="nav-btn" onclick="skipWaveBreak()" id="skip-wave-btn" style="display:none;">⏩下一波</button><button class="nav-btn" onclick="clearSelection()">✖取消</button><button class="nav-btn" id="btn-manual" onclick="openInstructions()">📋说明书</button><button class="nav-btn" id="btn-ency" onclick="openEncyclopediaPaused()" style="display:none;">📖图鉴</button><button class="nav-btn" id="btn-pause" onclick="togglePause()" style="display:none;">⏸暂停</button><button class="nav-btn" id="btn-dev" onclick="toggleDevMode()">🔐开发者</button><button class="nav-btn" id="btn-back-menu" onclick="backToMenu()" style="display:none;">🏠返回菜单</button></div>
 </nav>
 <div id="map-container"><canvas id="gameCanvas"></canvas></div>
 <div id="context-menu"></div>
@@ -186,6 +186,7 @@
     let selectedCell=null, quickUpgradeMode=false;
     let achievementData={}, unlockedEnemyTypes=new Set();
     let pendingEnemyIntro=null, introPause=false, bossSelectionPause=false;
+    let gamePaused=false; // 游戏暂停(查看图鉴/停止按钮)
     let waveSpawnQueue=[], waveSpawnTimer=0;
     let mouseDown=false, mouseRow=-1, mouseCol=-1, mouseCanvasX=-1, mouseCanvasY=-1;
     let selectionStartRow=-1, selectionStartCol=-1, selectionEndRow=-1, selectionEndCol=-1;
@@ -955,6 +956,7 @@
 
     let lastTime=performance.now();
     function gameLoop(ts){ let dt=(ts-lastTime)/1000; if(dt<=0)dt=0.016; if(dt>0.3)dt=0.3; dt*=gameSpeed; lastTime=ts; if(baseInvincible>0){ baseInvincible-=dt; if(baseInvincible<0)baseInvincible=0; }
+        if(gamePaused){ updateUI(); render(); requestAnimationFrame(gameLoop); return; }
         if(gameMode==='season'&&seasonActive&&(gamePhase==='defense'||gamePhase==='digging')){
             // 赛季模式
             if(seasonSubMode==='experience'){
@@ -1275,11 +1277,14 @@
     }
     canvas.addEventListener('contextmenu',(e)=>{ e.preventDefault(); if(quickUpgradeMode)return; closeMenu(); clearSelection(); updateUI(); });
 
-    // 入口:查看敌人词条
+    // 入口:查看词条
     function showEntranceMenu(mx,my){
-        let html='<div class="modal-overlay"><div class="modal"><h3>📖 敌人词条</h3><div style="font-size:0.75em;color:#888;margin-bottom:8px;">已解锁 '+unlockedEnemyTypes.size+' / '+Object.keys(ENEMY_TYPES).length+' 种</div>';
-        const sorted=Object.entries(ENEMY_TYPES).sort((a,b)=>(a[1].tier||1)-(b[1].tier||1));
-        for(const [k,d] of sorted){ const unlocked=devMode||unlockedEnemyTypes.has(k); html+=`<div class="ency-entry">${unlocked?d.emoji:'❓'} <b>${unlocked?d.name:'???'}</b> ❤️${d.hp} ⚡${d.damage} 🏃${d.speed} 🛡️${d.armor} 💰${d.bounty} ${unlocked?'<br><span style="color:#aaa;">'+d.desc+'</span>':'<span style="color:#555;">未解锁</span>'}</div>`; }
+        let html='<div class="modal-overlay"><div class="modal" style="max-width:500px;max-height:80vh;overflow-y:auto;"><h3>📛 词条列表</h3>';
+        html+=`<p style="color:#888;font-size:0.8em;">击杀Boss后可选择惩罚词条。共 ${AFFIX_POOL.length} 个词条。</p>`;
+        for(const a of AFFIX_POOL){
+            const consumed=isAffixConsumed(a);
+            html+=`<div class="ency-entry" style="${consumed?'opacity:0.5;':''}"><b style="color:#f0c040;">${a.name}</b> - ${a.desc}${consumed?' <span style="color:#666;font-size:0.8em;">(已生效)</span>':''}</div>`;
+        }
         html+='<button onclick="document.getElementById(\'modalContainer\').innerHTML=\'\'">关闭</button></div></div>';
         document.getElementById('modalContainer').innerHTML=html;
     }
@@ -1517,9 +1522,12 @@
     function setCustomSpeed(){ const val=parseFloat(document.getElementById('custom-speed-input').value); if(!isNaN(val)&&val>0){ gameSpeed=val; updateSpeedButtons(); } }
     function updateSpeedButtons(){ ['btn-sp05','btn-sp1','btn-sp2','btn-sp5'].forEach((id,i)=>{ document.getElementById(id).classList.toggle('active-speed',gameSpeed===[0.5,1,2,5][i]); }); }
     function showEnemyIntro(typeKey,level){ const t=ENEMY_TYPES[typeKey]; if(!t)return; document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>⚠️新敌人！</h3><div style="text-align:center;font-size:3em;">${t.emoji}</div><h4>${t.name} Lv${level}</h4><p>${t.desc}</p><p style="font-size:0.8em;color:#aaa;">❤️${t.hp} ⚡${t.damage} 🏃${t.speed} 🛡️${t.armor}</p><button onclick="document.getElementById('modalContainer').innerHTML='';introPause=false;pendingEnemyIntro=null;">确认</button></div></div>`; }
+    function togglePause(){ gamePaused=!gamePaused; const btn=document.getElementById('btn-pause'); if(btn)btn.textContent=gamePaused?'▶继续':'⏸暂停'; }
+    function openEncyclopediaPaused(){ gamePaused=true; const btn=document.getElementById('btn-pause'); if(btn)btn.textContent='▶继续'; openEncyclopedia(); }
     function openInstructions(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:700px;max-height:85vh;overflow-y:auto;"><h3>📋 说明书</h3>`;
+        const _vs=document.getElementById('versionSelect'); if(_vs&&_vs.style.display==='none'&&(gamePhase==='defense'||gamePhase==='digging')){ alert('游戏过程中不能查看说明书，请先返回菜单或使用图鉴'); return; }
         html+=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">`;
-        const secs=[['basic','🎮基础'],['tower','🏗️炮塔'],['obstacle','🚧障碍'],['enemy','👾怪物'],['season','🏆赛季'],['tips','💡技巧'],['affix','📛词条']];
+        const secs=[['basic','🎮基础'],['obstacle','🚧障碍'],['season','🏆赛季'],['tips','💡技巧']];
         for(const [id,label] of secs){ html+=`<button class="nav-btn" style="font-size:0.8em;" onclick="document.querySelectorAll('.inst-section').forEach(s=>s.style.display='none');document.getElementById('inst-${id}').style.display='block';">${label}</button>`; }
         html+=`</div>`;
         // 基础
@@ -1527,41 +1535,9 @@
         html+=`<h4>🎮 游戏目标</h4><p style="color:#aaa;">挖掘通道引导敌人行进路线，在通道两侧建造炮塔消灭敌人。敌人到达基地会扣除血量，血量归零则游戏结束。</p>`;
         html+=`<h4>📐 游戏阶段</h4><p style="color:#aaa;"><b>挖掘阶段</b>：点击空地挖掘通道，连接起点(🟢)和基地(🏰)。挖通后自动进入防守阶段。</p>`;
         html+=`<p style="color:#aaa;"><b>防守阶段</b>：敌人沿通道行进，炮塔自动攻击。波次间有休息时间可继续布阵。</p>`;
-        html+=`<h4>🖱️ 操作方式</h4><p style="color:#aaa;">• <b>左键点击空地</b>：弹出建造菜单（炮塔/障碍）<br>• <b>左键点击炮塔</b>：弹出升级/铲除/献祭菜单<br>• <b>左键点击基地</b>：升级基地韧性/金币生成<br>• <b>左键点击入口</b>：查看敌人词条<br>• <b>右键</b>：取消选择/关闭菜单<br>• <b>快捷升级模式</b>：框选多座炮塔批量升级</p>`;
+        html+=`<h4>🖱️ 操作方式</h4><p style="color:#aaa;">• <b>左键点击空地</b>：弹出建造菜单（炮塔/障碍）<br>• <b>左键点击炮塔</b>：弹出升级/铲除/献祭菜单<br>• <b>左键点击基地</b>：升级基地韧性/金币生成<br>• <b>左键点击入口</b>：查看词条<br>• <b>右键</b>：取消选择/关闭菜单<br>• <b>快捷升级模式</b>：框选多座炮塔批量升级</p>`;
         html+=`<h4>💰 资源系统</h4><p style="color:#aaa;">• <b>金币💰</b>：击杀敌人获得，用于建造和升级<br>• <b>水晶💎</b>：击杀Boss/特殊途径获得，用于购买特殊炮塔和障碍<br>• <b>铲除返还</b>：金币塔返还50%金币，水晶塔返还50%水晶</p>`;
         html+=`<h4>⚡ 献祭系统</h4><p style="color:#aaa;">花费一笔金币让炮塔在15秒内进入狂暴模式（冷却≈0、修复×10、产矿疯狂），随后自动消失。</p>`;
-        html+=`</div>`;
-        // 炮塔
-        html+=`<div class="inst-section" id="inst-tower" style="display:none;">`;
-        html+=`<h4>🏗️ 炮塔类型</h4>`;
-        html+=`<div class="ency-entry">🏹 <b>箭塔</b> (10pt) - 十字方向无限射程，单体物理伤害</div>`;
-        html+=`<div class="ency-entry">🧊 <b>冰箱</b> (35pt) - 范围减速，概率冻结3秒，冰属性</div>`;
-        html+=`<div class="ency-entry">🔥 <b>喷火枪</b> (40pt) - 前方锥形火焰，可升级距离，火属性</div>`;
-        html+=`<div class="ency-entry">☣️ <b>毒素喷射器</b> (40pt) - 前方锥形毒雾，持续中毒，毒属性</div>`;
-        html+=`<div class="ency-entry">⚡ <b>特斯拉线圈</b> (55pt) - 连锁闪电3-5跳，雷属性，触发元素反应</div>`;
-        html+=`<div class="ency-entry">💣 <b>高射炮</b> (200pt) - 发射单体光粒，高伤害</div>`;
-        html+=`<div class="ency-entry">☢️ <b>核弹井</b> (350pt) - 自动发射5×5范围火属性核弹</div>`;
-        html+=`<div class="ency-entry">🔧 <b>修复站</b> (45pt) - 持续回复基地血量</div>`;
-        html+=`<div class="ency-entry">⛏️ <b>水晶矿场</b> (💎3) - 每30秒产出1水晶</div>`;
-        html+=`<div class="ency-entry">🧪 <b>药水塔</b> (💎50) - 施加随机强力debuff</div>`;
-        html+=`<div class="ency-entry">🌪️ <b>风暴核心</b> (💎80) - 击退周围敌人</div>`;
-        html+=`<div class="ency-entry">🧨 <b>炸药包</b> (25pt) - 一次性爆炸</div>`;
-        html+=`<div class="ency-entry">🌬️ <b>风障</b> (30pt) - 一次性摧毁所有飞行敌人</div>`;
-        html+=`<div class="ency-entry">❄️ <b>极寒之冰</b> (20pt) - 一次性冻结范围敌人</div>`;
-        html+=`<div class="ency-entry">🕸️ <b>电线网</b> (💎30) - 两端点形成电光束，对湿敌人1.5倍伤害</div>`;
-        html+=`<div class="ency-entry">🪞 <b>镜子</b> (💎60) - 反射高射炮光束90°</div>`;
-        html+=`<h4>⭐ 究极形态（三属性均≥16级）</h4>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极箭塔：10%概率360°射一圈箭矢</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极冰箱：间歇性向+形或X形发射长冰雾</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极喷火枪/毒素：半圆范围+长条火焰/毒雾</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极特斯拉：概率对血量最高怪物发射高压电</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极高射炮：恢复直线光束全图穿透+镜子反射</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极核弹井：概率连发额外核弹</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极修复站：保护炮塔+修复仙人掌和拦路石</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极矿场：产水晶同时产金币</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极药水塔：概率对远处敌人发射药水</div>`;
-        html+=`<div class="ency-entry" style="color:#f0c040;">究极风暴核心：概率让飞行物坠机</div>`;
-        html+=`<h4>🔄 元素反应</h4><p style="color:#aaa;">• <b>冰+火</b> = 融化反应（1.25倍伤害）<br>• <b>水+雷</b> = 导电（1.5倍伤害）<br>• <b>冰+雷</b> = 超导（额外伤害）<br>• <b>🔥火雷腐化</b> = 敌人每次受击伤害+1%（可无限叠加），受击越多伤害越高</p>`;
         html+=`</div>`;
         // 障碍
         html+=`<div class="inst-section" id="inst-obstacle" style="display:none;">`;
@@ -1577,36 +1553,6 @@
         html+=`<div class="ency-entry">💣 <b>敢死队</b> - 高速冲向敌人自爆</div>`;
         html+=`<div class="ency-entry">🛡️ <b>盾牌师</b> - 高血量肉盾</div>`;
         html+=`<div class="ency-entry">❤️ <b>医生</b> - 治疗基地</div>`;
-        html+=`</div>`;
-        // 敌人
-        html+=`<div class="inst-section" id="inst-enemy" style="display:none;">`;
-        html+=`<h4>👾 普通敌人</h4>`;
-        html+=`<div class="ency-entry">🧟 僵尸 | 🟢 史莱姆(分裂) | 🏃 竞走者(免疫减速) | 🗻 肉山(高血)</div>`;
-        html+=`<div class="ency-entry">👻 幽魂(穿墙) | 🛸 无人机(飞行穿墙) | 🛰️ 飞艇(飞行直线) | 💚 治疗者</div>`;
-        html+=`<div class="ency-entry">⚡ 震撼者(眩晕炮塔) | 🚛 坦克师(重甲) | 💣 自爆虫 | 🦝 盗贼(偷金币)</div>`;
-        html+=`<div class="ency-entry">🧙 召唤师 | 🔵 分裂者 | 🛡️ 护盾兵 | 🌀 传送者 | 🪞 反弹者</div>`;
-        html+=`<h4>👑 Boss</h4>`;
-        html+=`<div class="ency-entry">👾 <b>毁灭者</b> - 第20波，眩晕炮塔，概率给周围怪物回满血</div>`;
-        html+=`<div class="ency-entry">👑 <b>贾维</b> - 第50波，全图抗伤50%，全图眩晕/突进/红色激光(震屏)</div>`;
-        html+=`<div class="ency-entry">🛩️ <b>轰炸机</b> - 第35波，飞行直线，持续轰炸炮塔，召唤自爆虫，投掷炸弹</div>`;
-        html+=`<div class="ency-entry">💃 <b>舞者</b> - 第45波，召唤超级墓碑(每2秒生成究极怪物)</div>`;
-        html+=`<div class="ency-entry">🎓 <b>学者</b> - 第25波，免疫同类炮塔伤害(首次受击后该类型炮塔伤害归零)</div>`;
-        html+=`<div class="ency-entry">🗿 <b>超级墓碑</b> - 不移动，每2秒召唤一个随机究极怪物</div>`;
-        html+=`<div class="ency-entry">🚛 <b>坦克师(强化)</b> - 重甲移动，每2秒向最近炮塔发射炮弹</div>`;
-        html+=`<h4>💀 究极敌人（第15波后出现）</h4>`;
-        html+=`<div class="ency-entry" style="color:#ff6666;">究极僵尸/震撼者：眩晕炮塔</div>`;
-        html+=`<div class="ency-entry" style="color:#ff6666;">究极史莱姆：死亡分裂16个普通史莱姆</div>`;
-        html+=`<div class="ency-entry" style="color:#ff6666;">究极盗贼：偷500金币+偷走3-8座炮塔</div>`;
-        html+=`<div class="ency-entry" style="color:#ff6666;">究极召唤师：生成墓碑(被索敌)+召唤僵尸</div>`;
-        html+=`<div class="ency-entry" style="color:#ff6666;">究极坦克师/肉山：极高血量</div>`;
-        html+=`<div class="ency-entry" style="color:#ff6666;">究极飞艇/无人机：飞行+穿墙</div>`;
-        html+=`<h4>📦 礼盒系统（超级随机模式）</h4>`;
-        html+=`<div class="ency-entry">🥉 <b>青铜礼盒</b> (20pt, 波1) - 可开出: 🏹箭塔 / ⛏️水晶矿场 (各50%)</div>`;
-        html+=`<div class="ency-entry">🥈 <b>白银礼盒</b> (50pt, 波5) - 可开出: 🏹箭塔 / 🧊冰箱 / 🔥喷火枪 / ☣️毒素 / 🔧修复站 / ⛏️水晶矿场 (各约17%)</div>`;
-        html+=`<div class="ency-entry">🥇 <b>黄金宝盒</b> (100pt, 波10) - 可开出: ⚡特斯拉线圈 / 🧪药水塔 (各50%)</div>`;
-        html+=`<div class="ency-entry">💎 <b>钻石宝盒</b> (200pt, 波15) - 可开出: 💣高射炮 / ☢️核弹井 / 🌪️风暴核心 / 🕳️黑洞 (各25%)</div>`;
-        html+=`<p style="color:#888;font-size:0.8em;">开出的炮塔等级随机1-3级。每25波出现Boss礼盒（打死后出Boss）。盲盒打死后不会变成Boss怪物。</p>`;
-        html+=`<h4>📖 Boss词条系统</h4><p style="color:#aaa;">击杀Boss后选择1个惩罚词条，影响后续波次。选择越多水晶奖励越多。</p>`;
         html+=`</div>`;
         // 赛季
         html+=`<div class="inst-section" id="inst-season" style="display:none;">`;
@@ -1634,16 +1580,9 @@
         html+=`<div class="ency-entry">11. 仙人掌/拦路石被破坏前会阻挡敌人后退</div>`;
         html+=`<div class="ency-entry">12. 前线兵营可生产友军协助防守</div>`;
         html+=`</div>`;
-        // 词条
-        html+=`<div class="inst-section" id="inst-affix" style="display:none;">`;
-        html+=`<h4>📛 词条列表</h4>`;
-        html+=`<p style="color:#aaa;">击杀Boss后可选择惩罚词条，影响后续波次。以下是全部已有词条：</p>`;
-        for(const a of AFFIX_POOL){ html+=`<div class="ency-entry"><b style="color:#f0c040;">${a.name}</b> - ${a.desc}</div>`; }
-        html+=`<p style="color:#888;font-size:0.8em;margin-top:8px;">共 ${AFFIX_POOL.length} 个词条。坚不可摧模式中每5波可从5个随机词条中选2个。</p>`;
-        html+=`</div>`;
         html+=`<button onclick="document.getElementById('modalContainer').innerHTML=''">关闭</button></div></div>`;
         document.getElementById('modalContainer').innerHTML=html; }
-    function openEncyclopedia(){ let html='<div class="modal-overlay"><div class="modal" style="max-width:700px;"><h3>📖图鉴</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">'; const tabs=[['enemy','👾怪物'],['tower','🏗️炮塔'],['obstacle','🚧障碍'],['ally','🛡️友军'],['box','📦礼盒']]; for(const [id,label] of tabs){ html+=`<button class="nav-btn" style="font-size:0.8em;" onclick="document.querySelectorAll('.ency-tab').forEach(t=>t.style.display='none');document.getElementById('ency-${id}').style.display='grid';">${label}</button>`; } html+='</div>';
+    function openEncyclopedia(){ let html='<div class="modal-overlay"><div class="modal" style="max-width:700px;"><h3>📖图鉴</h3><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">'; const tabs=[['enemy','👾怪物'],['tower','🏗️炮塔'],['obstacle','🚧障碍'],['ally','🛡️友军'],['box','📦礼盒'],['boss','👑Boss'],['ultimate','💀究极怪'],['reaction','🔄反应'],['affix','📛词条']]; for(const [id,label] of tabs){ html+=`<button class="nav-btn" style="font-size:0.8em;" onclick="document.querySelectorAll('.ency-tab').forEach(t=>t.style.display='none');document.getElementById('ency-${id}').style.display='grid';">${label}</button>`; } html+='</div>';
         // 怪物井字格
         html+='<div class="ency-tab" id="ency-enemy" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">';
         const sortedEnemies=Object.entries(ENEMY_TYPES).sort((a,b)=>(a[1].tier||1)-(b[1].tier||1));
@@ -1662,7 +1601,29 @@
         const BOX_TYPES={'bronze':{name:'青铜礼盒',icon:'🥉',cost:20,unlock:1,desc:'随机开出低级炮塔',pool:'🏹箭塔 / ⛏️水晶矿场 (各50%)'},'silver':{name:'白银礼盒',icon:'🥈',cost:50,unlock:5,desc:'随机开出中级炮塔',pool:'🏹箭塔 / 🧊冰箱 / 🔥喷火枪 / ☣️毒素 / 🔧修复站 / ⛏️水晶矿场 (各约17%)'},'gold':{name:'黄金宝盒',icon:'🥇',cost:100,unlock:10,desc:'随机开出高级炮塔',pool:'⚡特斯拉线圈 / 🧪药水塔 (各50%)'},'diamond':{name:'钻石宝盒',icon:'💎',cost:200,unlock:15,desc:'随机开出顶级炮塔',pool:'💣高射炮 / ☢️核弹井 / 🌪️风暴核心 / 🕳️黑洞 (各25%)'}};
         html+='<div class="ency-tab" id="ency-box" style="display:none;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">';
         for(const [k,d] of Object.entries(BOX_TYPES)){ html+=`<div style="background:#1e1e30;border:1px solid #333;border-radius:8px;padding:8px;text-align:center;cursor:pointer;" onclick="showBoxDetail('${k}')"><div style="font-size:1.8em;">${d.icon}</div><div style="font-size:0.7em;color:#aaa;">${d.name}</div></div>`; } html+='</div>';
-        html+='<button onclick="document.getElementById(\'modalContainer\').innerHTML=\'\'">关闭</button></div></div>'; document.getElementById('modalContainer').innerHTML=html; }
+        // Boss井字格
+        html+='<div class="ency-tab" id="ency-boss" style="display:none;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">';
+        const bossTypes=Object.entries(ENEMY_TYPES).filter(([k,d])=>d.special&&d.special.startsWith('boss'));
+        for(const [k,d] of bossTypes){ html+=`<div style="background:#1e1e30;border:1px solid #444;border-radius:8px;padding:8px;text-align:center;cursor:pointer;" onclick="showEnemyDetail('${k}')"><div style="font-size:1.8em;">${d.emoji}</div><div style="font-size:0.7em;color:#aaa;">${d.name}</div></div>`; } html+='</div>';
+        // 究极怪井字格
+        html+='<div class="ency-tab" id="ency-ultimate" style="display:none;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">';
+        const ultTypes=Object.entries(ENEMY_TYPES).filter(([k,d])=>k.startsWith('ultimate'));
+        for(const [k,d] of ultTypes){ html+=`<div style="background:#1e1e30;border:1px solid #444;border-radius:8px;padding:8px;text-align:center;cursor:pointer;" onclick="showEnemyDetail('${k}')"><div style="font-size:1.8em;">${d.emoji}</div><div style="font-size:0.7em;color:#aaa;">${d.name}</div></div>`; } html+='</div>';
+        // 元素反应
+        html+='<div class="ency-tab" id="ency-reaction" style="display:none;flex-direction:column;gap:8px;">';
+        html+=`<div class="ency-entry" style="color:#88ccff;">❄️+🔥 冰+火 = 融化反应(1.25倍伤害)</div>`;
+        html+=`<div class="ency-entry" style="color:#44ff44;">💧+⚡ 水+雷 = 导电(1.5倍伤害)</div>`;
+        html+=`<div class="ency-entry" style="color:#aa88ff;">❄️+⚡ 冰+雷 = 超导(额外伤害)</div>`;
+        html+=`<div class="ency-entry" style="color:#ff6644;">🔥+⚡ 火雷腐化 = 每次受击伤害+1%(无限叠加)</div>`;
+        html+=`<div class="ency-entry" style="color:#ff8844;">💧+🔥 水+火 = 蒸发(1.4倍伤害,清除水)</div>`;
+        html+=`<div class="ency-entry" style="color:#88ff44;">☣️+🔥 毒+火 = 燃烧(1.6倍伤害,清除毒)</div>`;
+        html+=`</div>`;
+        // 词条列表
+        html+='<div class="ency-tab" id="ency-affix" style="display:none;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;">';
+        for(const a of AFFIX_POOL){ html+=`<div class="ency-entry"><b style="color:#f0c040;">${a.name}</b> - ${a.desc}</div>`; }
+        html+=`<p style="color:#888;font-size:0.8em;">共 ${AFFIX_POOL.length} 个词条</p>`;
+        html+='</div>';
+        html+='<button onclick="document.getElementById(\'modalContainer\').innerHTML=\'\';gamePaused=false;const b=document.getElementById(\'btn-pause\');if(b)b.textContent=\'⏸暂停\';">关闭</button></div></div>'; document.getElementById('modalContainer').innerHTML=html; }
     function showEnemyDetail(k){ const d=ENEMY_TYPES[k]; if(!d)return; let html=`<div class="modal-overlay"><div class="modal" style="max-width:450px;"><div style="text-align:center;"><div style="font-size:3em;">${d.emoji}</div><h3>${d.name}</h3><div style="color:#888;font-size:0.8em;">强度等级: T${d.tier||1}</div></div>`;
 html+=`<div class="ency-entry" style="background:#1a1a2e;border-radius:8px;padding:10px;margin:8px 0;">
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
@@ -1726,7 +1687,121 @@ if(d.isFan)html+=`<div class="ency-entry" style="color:#88ccff;">🌀 风扇:直
 if(d.isLamp)html+=`<div class="ency-entry" style="color:#FFD700;">💡 路灯:驱散迷雾照亮黑暗,使隐形幽魂显现,最高15级</div>`;
 if(d.requiresMaxed)html+=`<div class="ency-entry" style="color:#ff66ff;">🌿 种植前置:需种植在满级${TOWER_TYPES[d.requiresMaxed]?.name||'炮塔'}上</div>`;
 if(d.maxLvl)html+=`<div class="ency-entry" style="color:#f0c040;">⬆️ 最高等级: ${d.maxLvl}</div>`;
-html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
+// 炮塔攻击效果小动画
+html+=`<div style="margin:10px 0;"><h4 style="color:#f0c040;">🎬 攻击效果演示</h4><canvas id="demoCanvas_${k}" width="280" height="140" style="background:#0a0a1a;border:1px solid #333;border-radius:6px;display:block;margin:0 auto;"></canvas><div style="text-align:center;margin-top:4px;"><button class="nav-btn" style="font-size:0.7em;" onclick="toggleDemoUltimate('${k}')">切换 究极/普通</button></div></div>`;
+html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; setTimeout(()=>startTowerDemo(k),50); }
+    let _demoAnimations={}; // 存储所有活跃的演示动画
+    let _demoUltimateMode={}; // 记录每个炮塔是否显示究极形态
+    window.toggleDemoUltimate=function(k){ _demoUltimateMode[k]=!_demoUltimateMode[k]; };
+    function startTowerDemo(towerType){
+        const canvas=document.getElementById('demoCanvas_'+towerType);
+        if(!canvas)return;
+        const ctx=canvas.getContext('2d');
+        const W=canvas.width, H=canvas.height;
+        // 演示用的小型场地
+        const demoCellSize=20;
+        const towerX=40, towerY=H/2;
+        let enemyX=W-40, enemyY=H/2;
+        let enemyHP=100, enemyMaxHP=100;
+        let attackCD=0;
+        let projectiles=[];
+        let particles=[];
+        let frameCount=0;
+        // 取炮塔信息
+        const t=TOWER_TYPES[towerType];
+        if(!t)return;
+        const baseDmg=t.dmg||10;
+        const baseCD=t.cd||1;
+        const baseRange=t.range===99?20:t.range||3;
+        const rangePx=baseRange*demoCellSize;
+        // 动画循环
+        function animate(){
+            if(!document.getElementById('demoCanvas_'+towerType))return; // canvas已移除
+            const isUltimate=_demoUltimateMode[towerType]||false; // 每帧读取,支持切换
+            frameCount++;
+            ctx.clearRect(0,0,W,H);
+            // 画背景场地
+            ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,W,H);
+            // 画地面格子
+            ctx.strokeStyle='#1a1a2a'; ctx.lineWidth=0.5;
+            for(let x=0;x<W;x+=demoCellSize){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+            for(let y=0;y<H;y+=demoCellSize){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+            // 画射程范围
+            ctx.strokeStyle='rgba(100,100,200,0.2)'; ctx.beginPath(); ctx.arc(towerX,towerY,rangePx,0,Math.PI*2); ctx.stroke();
+            // 敌人移动(向左走)
+            enemyX -= 0.3;
+            if(enemyX < towerX+30){ enemyX = W-40; enemyHP=enemyMaxHP; }
+            // 炮塔攻击
+            attackCD -= 1/60;
+            if(attackCD<=0 && Math.abs(enemyX-towerX)<rangePx){
+                attackCD = baseCD;
+                // 发射弹幕
+                const angle = Math.atan2(enemyY-towerY, enemyX-towerX);
+                const color = getTowerAttackColor(towerType);
+                projectiles.push({x:towerX, y:towerY, vx:Math.cos(angle)*3, vy:Math.sin(angle)*3, life:1, color:color, type:towerType});
+                // 究极模式:额外弹幕
+                if(isUltimate && (towerType==='arrow'||towerType==='cannon')){
+                    for(let i=-2;i<=2;i++){ if(i===0)continue; projectiles.push({x:towerX, y:towerY, vx:Math.cos(angle+i*0.3)*3, vy:Math.sin(angle+i*0.3)*3, life:1, color:color, type:towerType}); }
+                }
+                // 造成伤害
+                enemyHP -= baseDmg;
+                if(enemyHP<=0){ enemyHP=enemyMaxHP; enemyX=W-40; spawnDemoParticles(particles,enemyX,enemyY,'#ff4444',15); }
+            }
+            // 更新和绘制弹幕
+            for(const p of projectiles){ p.x+=p.vx; p.y+=p.vy; p.life-=0.02; }
+            projectiles=projectiles.filter(p=>p.life>0 && p.x>0 && p.x<W && p.y>0 && p.y<H);
+            for(const p of projectiles){
+                ctx.save();
+                ctx.globalAlpha=p.life;
+                drawDemoProjectile(ctx, p, towerType);
+                ctx.restore();
+            }
+            // 更新和绘制粒子
+            for(const pt of particles){ pt.x+=pt.vx; pt.y+=pt.vy; pt.life-=0.03; }
+            particles=particles.filter(pt=>pt.life>0);
+            for(const pt of particles){ ctx.globalAlpha=pt.life; ctx.fillStyle=pt.color; ctx.fillRect(pt.x-1,pt.y-1,3,3); }
+            ctx.globalAlpha=1;
+            // 画炮塔
+            drawDemoTower(ctx, towerX, towerY, towerType, isUltimate, frameCount);
+            // 画敌人
+            drawDemoEnemy(ctx, enemyX, enemyY, enemyHP, enemyMaxHP);
+            // 画究极标记
+            if(isUltimate){ ctx.fillStyle='#f0c040'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('⭐究极', towerX, towerY-18); }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+    function getTowerAttackColor(type){
+        const colors={arrow:'#88ff88',ice:'#88ccff',fire:'#ff6644',toxic:'#88ff44',tesla:'#ffff44',cannon:'#ffaa44',nuke:'#ff4444',repair:'#44ff44',mine:'#88ccff',potion:'#ff88ff',storm:'#88ddff',fan:'#aaeeff',lamp:'#FFD700',dynamite:'#ffaa00',windWall:'#88ff88',iceBomb:'#88ccff',blackhole:'#aa00ff',wireNet:'#88ccff',mirror:'#dddddd'};
+        return colors[type]||'#ffffff';
+    }
+    function drawDemoProjectile(ctx, p, type){
+        const colors={arrow:'#88ff88',ice:'#88ccff',fire:'#ff6644',toxic:'#88ff44',tesla:'#ffff44',cannon:'#ffaa44',nuke:'#ff4444',potion:'#ff88ff',storm:'#88ddff',fan:'#aaeeff',dynamite:'#ffaa00',blackhole:'#aa00ff',wireNet:'#88ccff'};
+        ctx.fillStyle=colors[type]||'#ffffff';
+        ctx.shadowColor=colors[type]||'#ffffff'; ctx.shadowBlur=6;
+        if(type==='tesla'||type==='wireNet'){ ctx.strokeStyle=colors[type]; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(p.x-p.vx*3,p.y-p.vy*3); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+        else if(type==='fire'||type==='toxic'){ ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); }
+        else { ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,Math.PI*2); ctx.fill(); }
+        ctx.shadowBlur=0;
+    }
+    function drawDemoTower(ctx, x, y, type, isUlt, frame){
+        // 基座
+        ctx.fillStyle=isUlt?'#5a4a10':'#2a2a4a'; ctx.fillRect(x-8,y-8,16,16);
+        ctx.strokeStyle=isUlt?'#f0c040':'#555'; ctx.lineWidth=1; ctx.strokeRect(x-8,y-8,16,16);
+        // 图标用文字
+        const t=TOWER_TYPES[type]; if(t){ ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t.icon, x, y); }
+        // 究极光环
+        if(isUlt){ ctx.strokeStyle='rgba(240,192,64,0.5)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(x,y,12+Math.sin(frame*0.1)*2,0,Math.PI*2); ctx.stroke(); }
+    }
+    function drawDemoEnemy(ctx, x, y, hp, maxHP){
+        ctx.fillStyle='#8b9a6b'; ctx.beginPath(); ctx.arc(x,y,8,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='#555'; ctx.stroke();
+        ctx.fillStyle='#fff'; ctx.font='8px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧟',x,y);
+        // 血条
+        ctx.fillStyle='#330000'; ctx.fillRect(x-10,y-14,20,3);
+        ctx.fillStyle='#ff4444'; ctx.fillRect(x-10,y-14,20*(hp/maxHP),3);
+    }
+    function spawnDemoParticles(arr,x,y,color,count){ for(let i=0;i<count;i++){ arr.push({x,y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:1,color}); } }
     function showObstacleDetail(k){ const d=OBSTACLE_TYPES[k]; if(!d)return; let html=`<div class="modal-overlay"><div class="modal" style="max-width:400px;"><div style="text-align:center;"><div style="font-size:3em;">${d.icon}</div><h3>${d.name}</h3></div>`; html+=`<div class="ency-entry">${d.cost?'💰'+d.cost+'pt':''} ${d.crystalCost?'💎'+d.crystalCost:''} | 解锁波次:${d.unlockWave}</div>`; html+=`<div class="ency-entry" style="color:#aaa;">${d.desc}</div>`; if(d.upgrades){ html+='<div class="ency-entry" style="color:#f0c040;">升级:</div>'; for(const [uk,uv] of Object.entries(d.upgrades)){ html+=`<div class="ency-entry">${uv.name}: ${uv.base}+${uv.perLvl}/级</div>`; } } html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
     function showAllyDetail(k){ const d=ALLY_TYPES[k]; if(!d)return; let html=`<div class="modal-overlay"><div class="modal" style="max-width:400px;"><div style="text-align:center;"><div style="font-size:3em;">${d.emoji}</div><h3>${d.name}</h3></div>`; html+=`<div class="ency-entry">❤️生命:${d.hp} ⚡伤害:${d.damage} 🏃速度:${d.speed}</div>`; html+=`<div class="ency-entry" style="color:#aaa;">${d.desc}</div>`; html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
     function showBoxDetail(k){ const BOX_TYPES={'bronze':{name:'青铜礼盒',icon:'🥉',cost:20,unlock:1,desc:'随机开出低级炮塔',pool:'🏹箭塔 / ⛏️水晶矿场 (各50%)'},'silver':{name:'白银礼盒',icon:'🥈',cost:50,unlock:5,desc:'随机开出中级炮塔',pool:'🏹箭塔 / 🧊冰箱 / 🔥喷火枪 / ☣️毒素 / 🔧修复站 / ⛏️水晶矿场 (各约17%)'},'gold':{name:'黄金宝盒',icon:'🥇',cost:100,unlock:10,desc:'随机开出高级炮塔',pool:'⚡特斯拉线圈 / 🧪药水塔 (各50%)'},'diamond':{name:'钻石宝盒',icon:'💎',cost:200,unlock:15,desc:'随机开出顶级炮塔',pool:'💣高射炮 / ☢️核弹井 / 🌪️风暴核心 / 🕳️黑洞 (各25%)'}}; const d=BOX_TYPES[k]; if(!d)return; let html=`<div class="modal-overlay"><div class="modal" style="max-width:400px;"><div style="text-align:center;"><div style="font-size:3em;">${d.icon}</div><h3>${d.name}</h3></div>`; html+=`<div class="ency-entry">💰${d.cost}pt | 解锁波次:${d.unlock}</div>`; html+=`<div class="ency-entry" style="color:#aaa;">${d.desc}</div>`; html+=`<div class="ency-entry" style="color:#f0c040;">可开出炮塔:</div>`; html+=`<div class="ency-entry">${d.pool}</div>`; html+=`<div class="ency-entry" style="color:#888;font-size:0.8em;">开出的炮塔等级随机1-3级</div>`; html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; }
@@ -1763,7 +1838,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
     document.getElementById('btnCreateNewSave').addEventListener('click',saveGame);
     document.addEventListener('click',(e)=>{ if(!e.target.closest('#saveDropdown'))document.getElementById('dropdownMenu').classList.remove('show'); });
     // 修复:重置时清空所有暂停标志与开发者伤害记录
-    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; baseInvincible=0; window._lastAutoSaveWave=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; updateUI(); }
+    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; baseInvincible=0; window._lastAutoSaveWave=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='inline-block'; updateUI(); }
     function triggerGameOver(){ if(gameMode==='season'&&seasonSubMode==='experience'){ baseHP=9999; return; } if(devMode){ baseHP=1; return; } if(baseTotems>0){ baseTotems--; baseHP=maxBaseHP; baseInvincible=10; alert('🗿不死图腾生效！基地满血+10秒无敌！'); updateUI(); return; } if(gameMode==='season'){ if(baseHP<=0){ alert(`💀基地被摧毁！(HP: ${Math.floor(baseHP)}/${maxBaseHP})\n坚持到了第${waveNumber}波`); } endSeasonMode(); return; } alert('💀基地已摧毁！游戏重新开始'); resetGame(); }
 
     // ===== 赛季模式系统 =====
@@ -1840,7 +1915,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             baseHP=100; maxBaseHP=100; points=500; crystals=100; waveNumber=0; randomBoxMode=true;
             initGrid(); gamePhase='digging'; waveActive=false; waveBreakTimer=0; waveBreakDuration=15;
         }
-        selectedCell=null; updateUI(); updateSeasonHUD(); }
+        selectedCell=null; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='inline-block'; updateUI(); updateSeasonHUD(); }
     // 赛季模式出怪
     function processSeasonSpawning(dt){
         if(seasonSubMode==='experience'){
@@ -2017,7 +2092,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         const lbList=document.getElementById('lbList'); if(lbList)lbList.innerHTML=entries;
     }
     // 返回菜单
-    function backToMenu(){ seasonActive=false; document.getElementById('seasonHUD').style.display='none'; document.getElementById('modalContainer').innerHTML=''; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; }
+    function backToMenu(){ seasonActive=false; document.getElementById('seasonHUD').style.display='none'; document.getElementById('modalContainer').innerHTML=''; gameMode='normal'; randomBoxMode=false; resetGame(); document.getElementById('versionCards').style.display='flex'; document.getElementById('seasonModeCards').style.display='none'; document.getElementById('versionSelect').style.display='flex'; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='inline-block'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='none'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='none'; gamePaused=false; }
     // 公告系统
     const ANNOUNCEMENTS=[
         {version:'v2026.07.13',date:'2026-07-13',title:'🎮 v2026.07.13 史诗级更新',content:`<h4>📋 词条系统重制</h4><ul><li>所有模式负面词条重写，共29种词条</li><li>新增特殊词条：南京条约(每轮选惩罚)/罚单/包租婆/伤口感染/磨洋工/不死族/最后的火药/呼叫支援/东风不利/三伏天/祸不单行/科技封锁</li><li>8种"仅一次不消失"词条，抽取后永久生效</li><li>删除"度日如年"词条</li></ul><h4>🌀 新炮塔</h4><ul><li>风扇(第15波解锁)：直线攻击击退怪物，前方有水吹水蒸气，有冰箱吹冰雾；满级可种植风暴核心</li><li>路灯(最高15级)：驱散迷雾照亮黑暗，升级增大范围，使隐形敌人显现</li><li>天气控制者：改变天气(晴/雨/雾/夜)，2轮后效果消失</li></ul><h4>🏗️ 种植前置要求</h4><ul><li>风暴核心需种植在满级风扇上</li><li>药水塔需种植在满级毒素喷射器上</li><li>电线网需种植在满级特斯拉线圈上</li></ul><h4>👹 Boss大加强</h4><ul><li>贾维：新增红色激光(震动特效)+全图抗伤(伤害-50%)</li><li>轰炸机：新增召唤自爆虫+投掷炸弹</li><li>新Boss舞者：召唤超级墓碑→究极怪物</li><li>毁灭者：新增概率回满血</li><li>新小Boss学者：免疫同类炮塔伤害</li></ul><h4>💥 全屏震动效果</h4><ul><li>核弹/高射炮究极/Boss技能/爆炸触发屏幕震动</li></ul><h4>👻 隐形机制</h4><ul><li>幽魂类怪物隐形时无法被索敌</li><li>路灯照射可显现隐形敌人</li></ul><h4>🚛 坦克师开火</h4><ul><li>坦克师每2秒向最近炮塔开火</li></ul><h4>🏗️ 通道建筑血量</h4><ul><li>通道上可建造炮塔(100HP)，敌人经过扣血</li></ul><h4>🔧 修复站增强</h4><ul><li>修复站可修复炮塔(优先基地)</li></ul><h4>🖱️ 操作模式</h4><ul><li>四模式切换：普通/升级/献祭/铲除</li><li>献祭和铲除支持拖动范围操作</li><li>开发者模式直接解锁献祭和搬运</li></ul><h4>📊 排行榜</h4><ul><li>使用开发者模式提交显示"开了"标记</li><li>四面楚歌/坚不可摧/超级随机分数=击杀数+波次数</li></ul>`},
