@@ -775,7 +775,7 @@
             if(cell.towerType==='mirror') continue;
             cell.towerAttackCD-=dt; if(cell.towerAttackCD<=0){ cell.towerAttackCD=sacCd||towerCD(cell.towerType,cell); towerAttack(cell,r,c); }
             if(cell.towerType==='repair'){ if(!(gameMode==='season'&&seasonSubMode==='fortress')){ const healRate=(0.3+cell.towerLevel*0.08)*(cell.overloadTimer>0?10:1);
-                // 修复炮塔:30倍优先(炮塔修复量:基地修复量=30:1)
+                // 修复炮塔:100倍优先(炮塔修复量:基地修复量=100:1)
                 let towerHealed=false;
                 if(cell.towerRepairCD>0)cell.towerRepairCD-=dt;
                 if(cell.towerRepairCD<=0){ cell.towerRepairCD=0.5; // 找范围内血量最低的炮塔
@@ -784,8 +784,8 @@
                     if(bestCell){ // 究极治疗者在场+伤口感染:禁用炮塔修复
                         const hasUltHealer=enemies.some(e=>e.alive&&e.typeKey==='ultimate_healer');
                         if(!(woundInfection&&hasUltHealer)){ bestCell.towerHP=Math.min(bestCell.towerMaxHP,bestCell.towerHP+10*(cell.overloadTimer>0?10:1)); towerHealed=true; spawnParticles(c*CELL_SIZE+12,r*CELL_SIZE+12,'#40ff40',3); } } }
-                // 基地修复:只有炮塔满血或没修炮塔时才修基地(30:1比例)
-                if(!towerHealed && !repairPriorityTower){ baseHP=Math.min(maxBaseHP,baseHP+healRate*dt/30); if(cell.overloadTimer>0)spawnTowerEffect(c*CELL_SIZE+12,r*CELL_SIZE+12,'#40ff40',2); }
+                // 基地修复:只有炮塔满血或没修炮塔时才修基地(100:1比例)
+                if(!towerHealed && !repairPriorityTower){ baseHP=Math.min(maxBaseHP,baseHP+healRate*dt/100); if(cell.overloadTimer>0)spawnTowerEffect(c*CELL_SIZE+12,r*CELL_SIZE+12,'#40ff40',2); }
                 // 究极修复站:概率保护场上炮塔,并修复仙人掌和拦路石
                     if(isUltimateTower(cell)){ cell.repairProtectCD=(cell.repairProtectCD||0)-dt; if(cell.repairProtectCD<=0){ cell.repairProtectCD=5; // 保护随机3座炮塔(眩晕免疫)
                         let count=0; for(let pr=0;pr<ROWS&&count<3;pr++)for(let pc=0;pc<COLS&&count<3;pc++){ const pc2=grid[pr][pc]; if(pc2.type==='tower'&&Math.random()<0.3){ pc2.stunned=0; pc2.protected=3; count++; } } // 修复仙人掌和拦路石
