@@ -1745,9 +1745,14 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             bgCtx.strokeStyle='rgba(255,215,0,0.3)'; bgCtx.lineWidth=1; bgCtx.stroke();
         }
         if(towerType==='wireNet'){
-            const ex2=towerX+rangePx, ey2=towerY;
-            bgCtx.fillStyle='#88ccff'; bgCtx.beginPath(); bgCtx.arc(ex2,ey2,5,0,Math.PI*2); bgCtx.fill();
-            bgCtx.strokeStyle='rgba(100,200,255,0.3)'; bgCtx.lineWidth=1; bgCtx.setLineDash([3,3]); bgCtx.beginPath(); bgCtx.moveTo(towerX,towerY); bgCtx.lineTo(ex2,ey2); bgCtx.stroke(); bgCtx.setLineDash([]);
+            // 上下两个端点
+            const topY=towerY-rangePx*0.6, botY=towerY+rangePx*0.6;
+            bgCtx.fillStyle='#88ccff';
+            bgCtx.beginPath(); bgCtx.arc(towerX,topY,5,0,Math.PI*2); bgCtx.fill();
+            bgCtx.beginPath(); bgCtx.arc(towerX,botY,5,0,Math.PI*2); bgCtx.fill();
+            bgCtx.strokeStyle='rgba(100,200,255,0.3)'; bgCtx.lineWidth=1; bgCtx.setLineDash([3,3]);
+            bgCtx.beginPath(); bgCtx.moveTo(towerX,topY); bgCtx.lineTo(towerX,botY); bgCtx.stroke();
+            bgCtx.setLineDash([]);
         }
         
         function animate(){
@@ -1777,15 +1782,17 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     performDemoAttack(towerType, isUltimate, inRange);
                 }
             }
-            // 更新弹幕
+            // 更新弹幕(限制数量避免卡顿)
             for(const p of projectiles){ if(p.update)p.update(1/60); else { p.x+=p.vx||0; p.y+=p.vy||0; p.life-=0.02; } }
             projectiles=projectiles.filter(p=>p.life>0);
+            if(projectiles.length>30)projectiles=projectiles.slice(-30);
             for(const p of projectiles){ if(p.draw)p.draw(ctx); }
-            // 更新效果
+            // 更新效果(限制数量避免卡顿)
             for(const ef of effects){ ef.life-=1/60; if(ef.draw)ef.draw(ctx); }
             effects=effects.filter(ef=>ef.life>0);
+            if(effects.length>20)effects=effects.slice(-20);
             // 更新粒子(限制数量避免卡顿)
-            for(const pt of particles){ pt.x+=pt.vx; pt.y+=pt.vy; pt.life-=0.03; }
+            for(const pt of particles){ pt.x+=pt.vx; pt.y+=pt.vy; pt.life-=0.04; }
             particles=particles.filter(pt=>pt.life>0);
             if(particles.length>60)particles=particles.slice(-60);
             for(const pt of particles){ ctx.globalAlpha=pt.life; ctx.fillStyle=pt.color; ctx.fillRect(pt.x-1,pt.y-1,3,3); }
@@ -1838,8 +1845,11 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     effects.push({life:0.25, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=demoCellSize*0.5;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
                     for(let i=0;i<6;i++){const t2=Math.random();particles.push({x:towerX+beamLen*t2,y:towerY+(Math.random()-0.5)*demoCellSize*0.5,vx:30+(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:0.5,color:isToxic?'#66dd00':(Math.random()<0.5?'#ff6600':'#ffaa00')});}
                     if(isUlt){
-                        effects.push({life:0.3, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=demoCellSize*0.6;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen*1.3,towerY);ctx.stroke();ctx.restore();}});
-                        for(const e of targets){ if(isToxic)e.poisoned=5; else e.burning=4; e.hp-=dmg*0.8; }
+                        // 究极:半圆范围伤害
+                        const halfRange=rangePx*1.2;
+                        for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<halfRange){ e.hp-=dmg*0.5; if(isToxic)e.poisoned=Math.max(e.poisoned,3); else e.burning=Math.max(e.burning,2); } }
+                        effects.push({life:0.35, draw(ctx){const a=this.life/0.35;ctx.save();ctx.fillStyle=isToxic?`rgba(100,220,0,${0.15*a})`:`rgba(255,100,0,${0.15*a})`;ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.6*a})`:`rgba(255,100,0,${0.6*a})`;ctx.lineWidth=2;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.arc(towerX,towerY,halfRange,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}});
+                        for(let i=0;i<10;i++){const ang=-Math.PI/2+Math.random()*Math.PI;const rad=Math.random()*halfRange;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:0,vy:0,life:0.5,color:isToxic?'#66dd00':'#ff6600'});}
                     }
                     break;
                 }
@@ -1946,17 +1956,15 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     break;
                 }
                 case 'wireNet': {
-                    // 电线网:两个端点中间放电(锯齿状闪电)
-                    const ex2=towerX+rangePx, ey2=towerY;
+                    // 电线网:上下两个端点中间垂直放电
+                    const topY=towerY-rangePx*0.6, botY=towerY+rangePx*0.6;
                     let hitAny=false, hitWet=false;
                     for(const e of targets){ const wasWet=e.wet>0; e.hp-=dmg; e.shocked=1; hitAny=true; if(wasWet){hitWet=true; e.hp-=dmg*0.5; spawnDemoParticles(particles,e.x,e.y,'#ffff00',6);} else {spawnDemoParticles(particles,e.x,e.y,'#88ccff',4);} }
                     if(hitAny){
-                        // 锯齿状电光束(两个端点之间)
-                        effects.push({life:0.15, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=hitWet?`rgba(255,255,0,${0.9*a})`:`rgba(100,200,255,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);const segs=6;const dx=ex2-towerX,dy=ey2-towerY;for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+dx*t+(Math.random()-0.5)*8,towerY+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(ex2,ey2);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(towerX,towerY);for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+dx*t+(Math.random()-0.5)*8,towerY+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(ex2,ey2);ctx.stroke();ctx.restore();}});
-                        // 湿敌人连锁闪电
-                        if(hitWet){ for(const e2 of enemies){ if(e2.wet>0&&Math.random()<0.5){ effects.push({life:0.2, sx:targets[0].x, sy:targets[0].y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.8)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx2=this.ex-this.sx,dy2=this.ey-this.sy;for(let i=1;i<4;i++){const t=i/4;ctx.lineTo(this.sx+dx2*t+(Math.random()-0.5)*6,this.sy+dy2*t+(Math.random()-0.5)*6);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
+                        // 垂直锯齿状闪电(上下端点之间)
+                        effects.push({life:0.15, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=hitWet?`rgba(255,255,0,${0.9*a})`:`rgba(100,200,255,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,topY);const segs=6;const dy=botY-topY;for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+(Math.random()-0.5)*10,topY+dy*t);}ctx.lineTo(towerX,botY);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(towerX,topY);for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+(Math.random()-0.5)*10,topY+dy*t);}ctx.lineTo(towerX,botY);ctx.stroke();ctx.restore();}});
+                        if(hitWet){ for(const e2 of enemies){ if(e2.wet>0&&Math.random()<0.5){ effects.push({life:0.2, sx:towerX, sy:towerY, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.8)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx2=this.ex-this.sx,dy2=this.ey-this.sy;for(let i=1;i<4;i++){const t=i/4;ctx.lineTo(this.sx+dx2*t+(Math.random()-0.5)*6,this.sy+dy2*t+(Math.random()-0.5)*6);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
                     }
-                    // 随机给敌人加水状态(模拟湿敌人)
                     if(frameCount%60===0){ for(const e of enemies){ if(Math.random()<0.3)e.wet=3; } }
                     for(const e of enemies){ if(e.wet>0)e.wet-=1/60; }
                     break;
