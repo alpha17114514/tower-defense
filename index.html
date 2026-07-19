@@ -1688,8 +1688,8 @@ if(d.isLamp)html+=`<div class="ency-entry" style="color:#FFD700;">💡 路灯:�
 if(d.requiresMaxed)html+=`<div class="ency-entry" style="color:#ff66ff;">🌿 种植前置:需种植在满级${TOWER_TYPES[d.requiresMaxed]?.name||'炮塔'}上</div>`;
 if(d.maxLvl)html+=`<div class="ency-entry" style="color:#f0c040;">⬆️ 最高等级: ${d.maxLvl}</div>`;
 // 炮塔攻击效果小动画
-if(!d.isOneShot){ html+=`<div style="margin:10px 0;"><h4 style="color:#f0c040;">🎬 攻击效果演示</h4><canvas id="demoCanvas_${k}" width="280" height="140" style="background:#0a0a1a;border:1px solid #333;border-radius:6px;display:block;margin:0 auto;"></canvas><div style="text-align:center;margin-top:4px;"><button class="nav-btn" style="font-size:0.7em;" onclick="toggleDemoUltimate('${k}')">切换 究极/普通</button></div></div>`; }
-html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; if(!d.isOneShot) setTimeout(()=>startTowerDemo(k),50); }
+html+=`<div style="margin:10px 0;"><h4 style="color:#f0c040;">🎬 攻击效果演示</h4><canvas id="demoCanvas_${k}" width="280" height="140" style="background:#0a0a1a;border:1px solid #333;border-radius:6px;display:block;margin:0 auto;"></canvas><div style="text-align:center;margin-top:4px;"><button class="nav-btn" style="font-size:0.7em;" onclick="toggleDemoUltimate('${k}')">切换 究极/普通</button></div></div>`;
+html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; setTimeout(()=>startTowerDemo(k),50); }
     let _demoAnimations={}; // 存储所有活跃的演示动画
     let _demoUltimateMode={}; // 记录每个炮塔是否显示究极形态
     window.toggleDemoUltimate=function(k){ _demoUltimateMode[k]=!_demoUltimateMode[k]; };
@@ -1772,7 +1772,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     if(isDirectional) return e.x>towerX && e.x<towerX+rangePx && Math.abs(e.y-towerY)<demoCellSize*0.7;
                     return Math.hypot(e.x-towerX,e.y-towerY)<rangePx;
                 });
-                if(inRange.length>0 || towerType==='repair' || towerType==='lamp'){
+                if(inRange.length>0 || towerType==='repair' || towerType==='lamp' || towerType==='dynamite' || towerType==='windWall' || towerType==='iceBomb' || towerType==='blackhole'){
                     attackCD=baseCD;
                     performDemoAttack(towerType, isUltimate, inRange);
                 }
@@ -1912,17 +1912,49 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     for(let i=0;i<2;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.7,y:towerY+Math.sin(ang)*rangePx*0.7,vx:0,vy:0,life:0.8,color:'#FFD700'});}
                     break;
                 }
+                case 'dynamite': {
+                    // 炸药包:范围爆炸(自身位置),一次性
+                    const explodeR=rangePx;
+                    for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<explodeR){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffaa00',4); } }
+                    effects.push({life:0.6, x:towerX, y:towerY, r:explodeR, draw(ctx){const a=this.life/0.6;const t=1-this.life/0.6;ctx.save();ctx.strokeStyle=`rgba(255,170,0,${0.8*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,140,0,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(255,170,0,${0.15*a})`;ctx.fill();ctx.restore();}});
+                    spawnDemoParticles(particles,towerX,towerY,'#ffaa00',25);
+                    attackCD=3; // 炸药包爆炸后3秒重置(演示循环)
+                    break;
+                }
+                case 'windWall': {
+                    // 风障:摧毁所有飞行敌人,一次性
+                    for(const e of enemies){ e.hp=0; e.maxHP=50; spawnDemoParticles(particles,e.x,e.y,'#88ff88',6); }
+                    effects.push({life:0.5, draw(ctx){const a=this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(100,255,100,${0.6*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(100,255,100,0.8)';ctx.shadowBlur=15;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(towerX,towerY,rangePx*(0.3+0.7*(1-a))+i*5,0,Math.PI*2);ctx.stroke();}ctx.restore();}});
+                    spawnDemoParticles(particles,towerX,towerY,'#88ff88',20);
+                    attackCD=3;
+                    break;
+                }
+                case 'iceBomb': {
+                    // 极寒之冰:范围冰冻+伤害,一次性
+                    for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<rangePx){ e.hp-=dmg; e.frozen=5; e.slowed=5; spawnDemoParticles(particles,e.x,e.y,'#88ccff',5); } }
+                    effects.push({life:0.7, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.7;const t=1-this.life/0.7;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(150,220,255,0.9)';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.12*a})`;ctx.fill();ctx.restore();}});
+                    for(let i=0;i<20;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:1,color:'#ccffff'});}
+                    attackCD=3;
+                    break;
+                }
+                case 'blackhole': {
+                    // 黑洞:吞噬全场怪物,一次性
+                    for(const e of enemies){ e.hp=0; e.maxHP=50; }
+                    effects.push({life:1.2, x:towerX, y:towerY, draw(ctx){const a=this.life/1.2;const t=1-this.life/1.2;ctx.save();ctx.translate(this.x,this.y);ctx.rotate(t*Math.PI*4);ctx.strokeStyle=`rgba(170,0,255,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(170,0,255,0.9)';ctx.shadowBlur=25;for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(0,0,5+i*8*t,0,Math.PI*1.5);ctx.stroke();}ctx.fillStyle=`rgba(50,0,80,${0.3*a})`;ctx.beginPath();ctx.arc(0,0,15*t,0,Math.PI*2);ctx.fill();ctx.restore();}});
+                    for(let i=0;i<40;i++){const ang=Math.random()*Math.PI*2;const rad=Math.random()*rangePx;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:-Math.cos(ang)*60,vy:-Math.sin(ang)*60,life:1.2,color:'#aa00ff'});}
+                    attackCD=4;
+                    break;
+                }
                 case 'wireNet': {
-                    // 第二个端点(右侧)
+                    // 电线网:两个端点中间放电(锯齿状闪电)
                     const ex2=towerX+rangePx, ey2=towerY;
-                    // 画端点2
-                    effects.push({life:0.1, draw(ctx){ctx.save();ctx.fillStyle='#88ccff';ctx.beginPath();ctx.arc(ex2,ey2,4,0,Math.PI*2);ctx.fill();ctx.restore();}});
                     let hitAny=false, hitWet=false;
                     for(const e of targets){ const wasWet=e.wet>0; e.hp-=dmg; e.shocked=1; hitAny=true; if(wasWet){hitWet=true; e.hp-=dmg*0.5; spawnDemoParticles(particles,e.x,e.y,'#ffff00',6);} else {spawnDemoParticles(particles,e.x,e.y,'#88ccff',4);} }
                     if(hitAny){
-                        effects.push({life:0.15, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex2,ey2);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex2,ey2);ctx.stroke();ctx.restore();}});
+                        // 锯齿状电光束(两个端点之间)
+                        effects.push({life:0.15, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=hitWet?`rgba(255,255,0,${0.9*a})`:`rgba(100,200,255,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);const segs=6;const dx=ex2-towerX,dy=ey2-towerY;for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+dx*t+(Math.random()-0.5)*8,towerY+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(ex2,ey2);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(towerX,towerY);for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+dx*t+(Math.random()-0.5)*8,towerY+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(ex2,ey2);ctx.stroke();ctx.restore();}});
                         // 湿敌人连锁闪电
-                        if(hitWet){ for(let i=0;i<enemies.length;i++){ const e2=enemies[i]; if(e2.wet>0&&Math.random()<0.5){ effects.push({life:0.2, sx:targets[0].x, sy:targets[0].y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.8)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
+                        if(hitWet){ for(const e2 of enemies){ if(e2.wet>0&&Math.random()<0.5){ effects.push({life:0.2, sx:targets[0].x, sy:targets[0].y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.8)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx2=this.ex-this.sx,dy2=this.ey-this.sy;for(let i=1;i<4;i++){const t=i/4;ctx.lineTo(this.sx+dx2*t+(Math.random()-0.5)*6,this.sy+dy2*t+(Math.random()-0.5)*6);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
                     }
                     // 随机给敌人加水状态(模拟湿敌人)
                     if(frameCount%60===0){ for(const e of enemies){ if(Math.random()<0.3)e.wet=3; } }
