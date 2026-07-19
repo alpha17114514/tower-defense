@@ -1698,76 +1698,211 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         if(!canvas)return;
         const ctx=canvas.getContext('2d');
         const W=canvas.width, H=canvas.height;
-        // 演示用的小型场地
         const demoCellSize=20;
         const towerX=40, towerY=H/2;
-        let enemyX=W-40, enemyY=H/2;
-        let enemyHP=100, enemyMaxHP=100;
+        // 多个敌人展示范围攻击
+        let enemies=[
+            {x:W-40, y:H/2-15, hp:100, maxHP:100, speed:0.3, burning:0, poisoned:0, frozen:0, slowed:0},
+            {x:W-70, y:H/2+10, hp:100, maxHP:100, speed:0.25, burning:0, poisoned:0, frozen:0, slowed:0},
+            {x:W-100, y:H/2-5, hp:100, maxHP:100, speed:0.28, burning:0, poisoned:0, frozen:0, slowed:0}
+        ];
         let attackCD=0;
         let projectiles=[];
         let particles=[];
+        let effects=[]; // 范围效果(冰圈、光环、闪电等)
         let frameCount=0;
-        // 取炮塔信息
         const t=TOWER_TYPES[towerType];
         if(!t)return;
         const baseDmg=t.dmg||10;
         const baseCD=t.cd||1;
-        const baseRange=t.range===99?20:t.range||3;
-        const rangePx=baseRange*demoCellSize;
-        // 动画循环
+        const baseRange=t.range===99?20:(t.range||3);
+        const rangePx=Math.min(baseRange*demoCellSize, W*0.7);
+        const isDirectional = (towerType==='fire'||towerType==='toxic'||towerType==='fan');
+        
         function animate(){
-            if(!document.getElementById('demoCanvas_'+towerType))return; // canvas已移除
-            const isUltimate=_demoUltimateMode[towerType]||false; // 每帧读取,支持切换
+            if(!document.getElementById('demoCanvas_'+towerType))return;
+            const isUltimate=_demoUltimateMode[towerType]||false;
             frameCount++;
             ctx.clearRect(0,0,W,H);
-            // 画背景场地
+            // 背景
             ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,W,H);
-            // 画地面格子
+            // 地面格子
             ctx.strokeStyle='#1a1a2a'; ctx.lineWidth=0.5;
-            for(let x=0;x<W;x+=demoCellSize){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-            for(let y=0;y<H;y+=demoCellSize){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-            // 画射程范围
-            ctx.strokeStyle='rgba(100,100,200,0.2)'; ctx.beginPath(); ctx.arc(towerX,towerY,rangePx,0,Math.PI*2); ctx.stroke();
-            // 敌人移动(向左走)
-            enemyX -= 0.3;
-            if(enemyX < towerX+30){ enemyX = W-40; enemyHP=enemyMaxHP; }
-            // 炮塔攻击
-            attackCD -= 1/60;
-            if(attackCD<=0 && Math.abs(enemyX-towerX)<rangePx){
-                attackCD = baseCD;
-                // 发射弹幕
-                const angle = Math.atan2(enemyY-towerY, enemyX-towerX);
-                const color = getTowerAttackColor(towerType);
-                projectiles.push({x:towerX, y:towerY, vx:Math.cos(angle)*3, vy:Math.sin(angle)*3, life:1, color:color, type:towerType});
-                // 究极模式:额外弹幕
-                if(isUltimate && (towerType==='arrow'||towerType==='cannon')){
-                    for(let i=-2;i<=2;i++){ if(i===0)continue; projectiles.push({x:towerX, y:towerY, vx:Math.cos(angle+i*0.3)*3, vy:Math.sin(angle+i*0.3)*3, life:1, color:color, type:towerType}); }
+            for(let x=0;x<=W;x+=demoCellSize){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+            for(let y=0;y<=H;y+=demoCellSize){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+            // 射程范围
+            if(!isDirectional){
+                ctx.strokeStyle='rgba(100,100,200,0.2)'; ctx.beginPath(); ctx.arc(towerX,towerY,rangePx,0,Math.PI*2); ctx.stroke();
+            } else {
+                ctx.strokeStyle='rgba(100,100,200,0.15)'; ctx.lineWidth=1;
+                ctx.beginPath(); ctx.moveTo(towerX, towerY);
+                ctx.lineTo(towerX+rangePx, towerY-demoCellSize*0.7);
+                ctx.lineTo(towerX+rangePx, towerY+demoCellSize*0.7);
+                ctx.closePath(); ctx.stroke();
+            }
+            // 敌人移动
+            for(const e of enemies){
+                if(e.frozen>0){ e.frozen-=1/60; }
+                else { const sp=e.slowed>0?e.speed*0.4:e.speed; e.x-=sp; }
+                if(e.slowed>0)e.slowed-=1/60;
+                if(e.burning>0){ e.burning-=1/60; if(frameCount%4===0)spawnDemoParticles(particles,e.x,e.y,'#ff6600',1); }
+                if(e.poisoned>0){ e.poisoned-=1/60; if(frameCount%4===0)spawnDemoParticles(particles,e.x,e.y,'#88ff00',1); }
+                if(e.x<towerX+25){ e.x=W-30+Math.random()*20; e.hp=e.maxHP; e.burning=0; e.poisoned=0; e.frozen=0; e.slowed=0; }
+                if(e.hp<0)e.hp=e.maxHP;
+            }
+            // 攻击逻辑
+            attackCD-=1/60;
+            if(attackCD<=0){
+                const inRange=enemies.filter(e=>{
+                    if(isDirectional) return e.x>towerX && e.x<towerX+rangePx && Math.abs(e.y-towerY)<demoCellSize*0.7;
+                    return Math.hypot(e.x-towerX,e.y-towerY)<rangePx;
+                });
+                if(inRange.length>0 || towerType==='repair' || towerType==='lamp'){
+                    attackCD=baseCD;
+                    performDemoAttack(towerType, isUltimate, inRange);
                 }
-                // 造成伤害
-                enemyHP -= baseDmg;
-                if(enemyHP<=0){ enemyHP=enemyMaxHP; enemyX=W-40; spawnDemoParticles(particles,enemyX,enemyY,'#ff4444',15); }
             }
-            // 更新和绘制弹幕
-            for(const p of projectiles){ p.x+=p.vx; p.y+=p.vy; p.life-=0.02; }
-            projectiles=projectiles.filter(p=>p.life>0 && p.x>0 && p.x<W && p.y>0 && p.y<H);
-            for(const p of projectiles){
-                ctx.save();
-                ctx.globalAlpha=p.life;
-                drawDemoProjectile(ctx, p, towerType);
-                ctx.restore();
-            }
-            // 更新和绘制粒子
+            // 更新弹幕
+            for(const p of projectiles){ if(p.update)p.update(1/60); else { p.x+=p.vx||0; p.y+=p.vy||0; p.life-=0.02; } }
+            projectiles=projectiles.filter(p=>p.life>0);
+            for(const p of projectiles){ if(p.draw)p.draw(ctx); }
+            // 更新效果
+            for(const ef of effects){ ef.life-=1/60; if(ef.draw)ef.draw(ctx); }
+            effects=effects.filter(ef=>ef.life>0);
+            // 更新粒子
             for(const pt of particles){ pt.x+=pt.vx; pt.y+=pt.vy; pt.life-=0.03; }
             particles=particles.filter(pt=>pt.life>0);
             for(const pt of particles){ ctx.globalAlpha=pt.life; ctx.fillStyle=pt.color; ctx.fillRect(pt.x-1,pt.y-1,3,3); }
             ctx.globalAlpha=1;
-            // 画炮塔
+            // 画炮塔和敌人
             drawDemoTower(ctx, towerX, towerY, towerType, isUltimate, frameCount);
-            // 画敌人
-            drawDemoEnemy(ctx, enemyX, enemyY, enemyHP, enemyMaxHP);
-            // 画究极标记
+            for(const e of enemies) drawDemoEnemy(ctx, e.x, e.y, e.hp, e.maxHP, e);
             if(isUltimate){ ctx.fillStyle='#f0c040'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('⭐究极', towerX, towerY-18); }
             requestAnimationFrame(animate);
+        }
+        
+        function performDemoAttack(type, isUlt, targets){
+            const dmg=baseDmg*(isUlt?1.5:1);
+            switch(type){
+                case 'arrow': {
+                    const dirs4=[[1,0],[-1,0],[0,1],[0,-1]];
+                    for(const [dx,dy] of dirs4){
+                        const ex=towerX+dx*60, ey=towerY+dy*60;
+                        effects.push({life:0.3, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${0.9*a})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex,ey);ctx.stroke();ctx.restore();}});
+                        for(const e of targets){
+                            if(dx!==0&&Math.abs(e.y-towerY)<demoCellSize*0.8&&(e.x-towerX)*dx>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
+                            if(dy!==0&&Math.abs(e.x-towerX)<demoCellSize*0.8&&(e.y-towerY)*dy>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
+                        }
+                    }
+                    if(isUlt&&Math.random()<0.4){
+                        for(let a=0;a<8;a++){ const ang=a*Math.PI/4; const ex=towerX+Math.cos(ang)*55, ey=towerY+Math.sin(ang)*55;
+                            effects.push({life:0.25, draw(ctx){const a2=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${0.7*a2})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex,ey);ctx.stroke();ctx.restore();}}); }
+                        for(const e of targets){ e.hp-=dmg*0.5; }
+                        spawnDemoParticles(particles,towerX,towerY,'#ffdd44',8);
+                    }
+                    break;
+                }
+                case 'ice': {
+                    for(const e of targets){ e.hp-=dmg; e.slowed=2; e.frozen=Math.max(e.frozen,1); spawnDemoParticles(particles,e.x,e.y,'#aaeeff',5); }
+                    effects.push({life:0.4, draw(ctx){const a=this.life/0.4;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(towerX,towerY,rangePx,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.08*a})`;ctx.fill();ctx.restore();}});
+                    for(let i=0;i<8;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:(Math.random()-0.5)*20,vy:(Math.random()-0.5)*20,life:0.8,color:'#ccffff'});}
+                    if(isUlt&&Math.random()<0.4){
+                        const isX=Math.random()<0.5;
+                        const dirs=isX?[[1,1],[1,-1],[-1,1],[-1,-1]]:[[1,0],[-1,0],[0,1],[0,-1]];
+                        for(const [dx,dy] of dirs){ const ex2=towerX+dx*rangePx, ey2=towerY+dy*rangePx;
+                            effects.push({life:0.4, draw(ctx){const a=this.life/0.4;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=demoCellSize*0.4;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex2,ey2);ctx.stroke();ctx.restore();}}); }
+                        for(const e of targets){ e.slowed=3; e.frozen=2; e.hp-=dmg*0.5; }
+                    }
+                    break;
+                }
+                case 'fire': case 'toxic': {
+                    const isToxic=type==='toxic';
+                    const beamLen=rangePx;
+                    for(const e of targets){ if(isToxic)e.poisoned=3; else e.burning=2; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,isToxic?'#88ff00':'#ff6600',4); }
+                    effects.push({life:0.25, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=demoCellSize*0.5;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
+                    for(let i=0;i<6;i++){const t2=Math.random();particles.push({x:towerX+beamLen*t2,y:towerY+(Math.random()-0.5)*demoCellSize*0.5,vx:30+(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:0.5,color:isToxic?'#66dd00':(Math.random()<0.5?'#ff6600':'#ffaa00')});}
+                    if(isUlt){
+                        effects.push({life:0.3, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=demoCellSize*0.6;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen*1.3,towerY);ctx.stroke();ctx.restore();}});
+                        for(const e of targets){ if(isToxic)e.poisoned=5; else e.burning=4; e.hp-=dmg*0.8; }
+                    }
+                    break;
+                }
+                case 'tesla': {
+                    if(targets.length===0)break;
+                    const target=targets[0];
+                    target.hp-=dmg;
+                    effects.push({life:0.2, sx:towerX, sy:towerY, ex:target.x, ey:target.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,100,${0.9*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<5;i++){const t=i/5;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*10,this.sy+dy*t+(Math.random()-0.5)*10);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}});
+                    spawnDemoParticles(particles,target.x,target.y,'#ffff66',6);
+                    for(let i=1;i<targets.length;i++){ const e2=targets[i]; e2.hp-=dmg*0.4;
+                        effects.push({life:0.15, sx:target.x, sy:target.y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,255,150,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.7)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let j=1;j<4;j++){const t=j/4;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*8,this.sy+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
+                    if(isUlt&&Math.random()<0.4){ const hpTarget=targets.reduce((a,b)=>b.hp>a.hp?b:a,targets[0]); hpTarget.hp-=dmg*2;
+                        effects.push({life:0.3, sx:towerX, sy:towerY, ex:hpTarget.x, ey:hpTarget.y, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(255,0,255,${0.9*a})`;ctx.lineWidth=5;ctx.shadowColor='rgba(255,0,255,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<7;i++){const t=i/7;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*15,this.sy+dy*t+(Math.random()-0.5)*15);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
+                    break;
+                }
+                case 'cannon': {
+                    if(targets.length===0)break;
+                    const target=targets[0];
+                    target.hp-=dmg;
+                    effects.push({life:0.2, sx:towerX, sy:towerY, ex:target.x, ey:target.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.8*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.beginPath();ctx.arc(this.ex,this.ey,5,0,Math.PI*2);ctx.fill();ctx.restore();}});
+                    spawnDemoParticles(particles,target.x,target.y,'#ffaa44',6);
+                    if(isUlt){ const beamLen2=W*1.5;
+                        effects.push({life:0.28, draw(ctx){const a=this.life/0.28;ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.5*a})`;ctx.lineWidth=8;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.strokeStyle=`rgba(255,210,90,${0.7*a})`;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.restore();}});
+                        for(const e of targets)e.hp-=dmg;
+                    }
+                    break;
+                }
+                case 'nuke': {
+                    if(targets.length===0)break;
+                    const target=targets[0];
+                    const nukeR=demoCellSize*2.5;
+                    for(const e of enemies){ if(Math.hypot(e.x-target.x,e.y-target.y)<nukeR){ e.hp-=dmg; e.burning=3; } }
+                    effects.push({life:0.5, x:target.x, y:target.y, r:nukeR, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,100,0,0.8)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(255,100,0,${0.15*a})`;ctx.fill();ctx.restore();}});
+                    spawnDemoParticles(particles,target.x,target.y,'#ff3300',20);
+                    if(isUlt&&Math.random()<0.5){ const t2=enemies[Math.floor(Math.random()*enemies.length)];
+                        for(const e of enemies){ if(Math.hypot(e.x-t2.x,e.y-t2.y)<nukeR)e.hp-=dmg*0.7; }
+                        effects.push({life:0.5, x:t2.x, y:t2.y, r:nukeR, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,100,0,0.8)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}});
+                        spawnDemoParticles(particles,t2.x,t2.y,'#ff6600',15);
+                    }
+                    break;
+                }
+                case 'potion': {
+                    for(const e of targets){ const r=Math.random(); if(r<0.25)e.slowed=4; else if(r<0.5)e.poisoned=5; else if(r<0.75)e.burning=3; else e.frozen=2; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#cc44ff',4); }
+                    effects.push({life:0.5, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.fill();ctx.restore();}});
+                    for(let i=0;i<6;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX,y:towerY,vx:Math.cos(ang)*60,vy:Math.sin(ang)*60,life:0.6,color:['#cc44ff','#ff44aa','#44ddff'][Math.floor(Math.random()*3)]});}
+                    if(isUlt&&Math.random()<0.3){ const farTargets=enemies.filter(e=>Math.hypot(e.x-towerX,e.y-towerY)>rangePx);
+                        if(farTargets.length>0){ const ft=farTargets[0]; ft.hp-=dmg*1.5;
+                            effects.push({life:0.5, x:ft.x, y:ft.y, r:rangePx*0.5, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}}); } }
+                    break;
+                }
+                case 'fan': {
+                    const beamLen=rangePx;
+                    for(const e of targets){ e.hp-=dmg; e.x+=demoCellSize*2; if(e.x>W-20)e.x=W-20; spawnDemoParticles(particles,e.x,e.y,'#88eeff',4); }
+                    effects.push({life:0.25, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(150,230,255,${0.5*a})`;ctx.lineWidth=demoCellSize*0.4;ctx.shadowColor='rgba(150,230,255,0.7)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
+                    break;
+                }
+                case 'storm': {
+                    for(const e of targets){ const dx=e.x-towerX, dy=e.y-towerY, dist=Math.hypot(dx,dy)||1; e.x+=(dx/dist)*demoCellSize*1.5; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#88ddff',4); }
+                    effects.push({life:0.35, draw(ctx){const a=this.life/0.35;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.6*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;for(let i=0;i<3;i++){ctx.beginPath();const startAng=frameCount*0.05+i*Math.PI*0.6;ctx.arc(towerX,towerY,rangePx*(0.5+0.5*Math.sin(startAng)),startAng,startAng+Math.PI*1.2);ctx.stroke();}ctx.restore();}});
+                    for(let i=0;i<6;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:Math.cos(ang)*50,vy:Math.sin(ang)*50,life:0.4,color:'#aaeeff'});}
+                    break;
+                }
+                case 'repair': {
+                    effects.push({life:0.5, draw(ctx){const a=this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(64,255,64,${0.4*a})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(towerX,towerY,rangePx*0.5,0,Math.PI*2);ctx.stroke();ctx.restore();}});
+                    spawnDemoParticles(particles,towerX,towerY,'#40ff40',3);
+                    break;
+                }
+                case 'lamp': {
+                    effects.push({life:0.5, draw(ctx){const a=this.life/0.5;ctx.save();ctx.fillStyle=`rgba(255,215,0,${0.05*a})`;ctx.beginPath();ctx.arc(towerX,towerY,rangePx,0,Math.PI*2);ctx.fill();ctx.strokeStyle=`rgba(255,215,0,${0.3*a})`;ctx.lineWidth=1;ctx.stroke();ctx.restore();}});
+                    break;
+                }
+                default: {
+                    if(targets.length===0)break;
+                    const target=targets[0]; target.hp-=dmg;
+                    const angle=Math.atan2(target.y-towerY,target.x-towerX);
+                    projectiles.push({x:towerX,y:towerY,vx:Math.cos(angle)*3,vy:Math.sin(angle)*3,life:1,draw(ctx){ctx.save();ctx.globalAlpha=this.life;ctx.fillStyle=getTowerAttackColor(type);ctx.shadowColor=getTowerAttackColor(type);ctx.shadowBlur=6;ctx.beginPath();ctx.arc(this.x,this.y,2.5,0,Math.PI*2);ctx.fill();ctx.restore();}});
+                    spawnDemoParticles(particles,target.x,target.y,getTowerAttackColor(type),3);
+                }
+            }
         }
         animate();
     }
@@ -1785,18 +1920,17 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         ctx.shadowBlur=0;
     }
     function drawDemoTower(ctx, x, y, type, isUlt, frame){
-        // 基座
         ctx.fillStyle=isUlt?'#5a4a10':'#2a2a4a'; ctx.fillRect(x-8,y-8,16,16);
         ctx.strokeStyle=isUlt?'#f0c040':'#555'; ctx.lineWidth=1; ctx.strokeRect(x-8,y-8,16,16);
-        // 图标用文字
         const t=TOWER_TYPES[type]; if(t){ ctx.font='10px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t.icon, x, y); }
-        // 究极光环
         if(isUlt){ ctx.strokeStyle='rgba(240,192,64,0.5)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(x,y,12+Math.sin(frame*0.1)*2,0,Math.PI*2); ctx.stroke(); }
     }
-    function drawDemoEnemy(ctx, x, y, hp, maxHP){
+    function drawDemoEnemy(ctx, x, y, hp, maxHP, e){
         ctx.fillStyle='#8b9a6b'; ctx.beginPath(); ctx.arc(x,y,8,0,Math.PI*2); ctx.fill();
         ctx.strokeStyle='#555'; ctx.stroke();
         ctx.fillStyle='#fff'; ctx.font='8px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🧟',x,y);
+        // 状态标记
+        if(e){ if(e.frozen>0){ ctx.fillStyle='rgba(150,220,255,0.5)'; ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.fill(); } if(e.slowed>0){ ctx.strokeStyle='rgba(100,200,255,0.5)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(x,y,11,0,Math.PI*2); ctx.stroke(); } }
         // 血条
         ctx.fillStyle='#330000'; ctx.fillRect(x-10,y-14,20,3);
         ctx.fillStyle='#ff4444'; ctx.fillRect(x-10,y-14,20*(hp/maxHP),3);
