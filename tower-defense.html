@@ -1805,7 +1805,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         }
         
         function performDemoAttack(type, isUlt, targets){
-            const dmg=baseDmg*(isUlt?1.5:1);
+            const dmg=baseDmg;
             switch(type){
                 case 'arrow': {
                     const dirs4=[[1,0],[-1,0],[0,1],[0,-1]];
@@ -1817,7 +1817,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                             if(dy!==0&&Math.abs(e.x-towerX)<demoCellSize*0.8&&(e.y-towerY)*dy>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
                         }
                     }
-                    if(isUlt&&Math.random()<0.4){
+                    if(isUlt&&Math.random()<0.1){
                         for(let a=0;a<8;a++){ const ang=a*Math.PI/4; const ex=towerX+Math.cos(ang)*55, ey=towerY+Math.sin(ang)*55;
                             effects.push({life:0.25, draw(ctx){const a2=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${0.7*a2})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex,ey);ctx.stroke();ctx.restore();}}); }
                         for(const e of targets){ e.hp-=dmg*0.5; }
@@ -1829,7 +1829,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     for(const e of targets){ e.hp-=dmg; e.slowed=2; e.frozen=Math.max(e.frozen,1); spawnDemoParticles(particles,e.x,e.y,'#aaeeff',5); }
                     effects.push({life:0.4, draw(ctx){const a=this.life/0.4;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(towerX,towerY,rangePx,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.08*a})`;ctx.fill();ctx.restore();}});
                     for(let i=0;i<8;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:(Math.random()-0.5)*20,vy:(Math.random()-0.5)*20,life:0.8,color:'#ccffff'});}
-                    if(isUlt&&Math.random()<0.4){
+                    if(isUlt&&Math.random()<0.15){
                         const isX=Math.random()<0.5;
                         const dirs=isX?[[1,1],[1,-1],[-1,1],[-1,-1]]:[[1,0],[-1,0],[0,1],[0,-1]];
                         for(const [dx,dy] of dirs){ const ex2=towerX+dx*rangePx, ey2=towerY+dy*rangePx;
@@ -1845,8 +1845,10 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     effects.push({life:0.25, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=demoCellSize*0.5;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
                     for(let i=0;i<6;i++){const t2=Math.random();particles.push({x:towerX+beamLen*t2,y:towerY+(Math.random()-0.5)*demoCellSize*0.5,vx:30+(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:0.5,color:isToxic?'#66dd00':(Math.random()<0.5?'#ff6600':'#ffaa00')});}
                     if(isUlt){
-                        // 究极:半圆范围伤害
                         const halfRange=rangePx*1.2;
+                        // 长条延伸伤害0.8倍
+                        for(const e of targets){ if(isToxic)e.poisoned=Math.max(e.poisoned,5); else e.burning=Math.max(e.burning,4); e.hp-=dmg*0.8; }
+                        // 半圆范围伤害0.5倍
                         for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<halfRange){ e.hp-=dmg*0.5; if(isToxic)e.poisoned=Math.max(e.poisoned,3); else e.burning=Math.max(e.burning,2); } }
                         effects.push({life:0.35, draw(ctx){const a=this.life/0.35;ctx.save();ctx.fillStyle=isToxic?`rgba(100,220,0,${0.15*a})`:`rgba(255,100,0,${0.15*a})`;ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.6*a})`:`rgba(255,100,0,${0.6*a})`;ctx.lineWidth=2;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.arc(towerX,towerY,halfRange,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}});
                         for(let i=0;i<10;i++){const ang=-Math.PI/2+Math.random()*Math.PI;const rad=Math.random()*halfRange;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:0,vy:0,life:0.5,color:isToxic?'#66dd00':'#ff6600'});}
@@ -1861,7 +1863,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     spawnDemoParticles(particles,target.x,target.y,'#ffff66',6);
                     for(let i=1;i<targets.length;i++){ const e2=targets[i]; e2.hp-=dmg*0.4;
                         effects.push({life:0.15, sx:target.x, sy:target.y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,255,150,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.7)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let j=1;j<4;j++){const t=j/4;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*8,this.sy+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
-                    if(isUlt&&Math.random()<0.4){ const hpTarget=targets.reduce((a,b)=>b.hp>a.hp?b:a,targets[0]); hpTarget.hp-=dmg*2;
+                    if(isUlt&&Math.random()<0.2){ const hpTarget=targets.reduce((a,b)=>b.hp>a.hp?b:a,targets[0]); hpTarget.hp-=dmg*2;
                         effects.push({life:0.3, sx:towerX, sy:towerY, ex:hpTarget.x, ey:hpTarget.y, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(255,0,255,${0.9*a})`;ctx.lineWidth=5;ctx.shadowColor='rgba(255,0,255,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<7;i++){const t=i/7;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*15,this.sy+dy*t+(Math.random()-0.5)*15);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
                     break;
                 }
@@ -1884,7 +1886,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     for(const e of enemies){ if(Math.hypot(e.x-target.x,e.y-target.y)<nukeR){ e.hp-=dmg; e.burning=3; } }
                     effects.push({life:0.5, x:target.x, y:target.y, r:nukeR, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,100,0,0.8)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(255,100,0,${0.15*a})`;ctx.fill();ctx.restore();}});
                     spawnDemoParticles(particles,target.x,target.y,'#ff3300',20);
-                    if(isUlt&&Math.random()<0.5){ const t2=enemies[Math.floor(Math.random()*enemies.length)];
+                    if(isUlt&&Math.random()<0.3){ const t2=enemies[Math.floor(Math.random()*enemies.length)];
                         for(const e of enemies){ if(Math.hypot(e.x-t2.x,e.y-t2.y)<nukeR)e.hp-=dmg*0.7; }
                         effects.push({life:0.5, x:t2.x, y:t2.y, r:nukeR, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,100,0,0.8)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}});
                         spawnDemoParticles(particles,t2.x,t2.y,'#ff6600',15);
@@ -1895,7 +1897,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     for(const e of targets){ const r=Math.random(); if(r<0.25)e.slowed=4; else if(r<0.5)e.poisoned=5; else if(r<0.75)e.burning=3; else e.frozen=2; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#cc44ff',4); }
                     effects.push({life:0.5, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.fill();ctx.restore();}});
                     for(let i=0;i<6;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX,y:towerY,vx:Math.cos(ang)*60,vy:Math.sin(ang)*60,life:0.6,color:['#cc44ff','#ff44aa','#44ddff'][Math.floor(Math.random()*3)]});}
-                    if(isUlt&&Math.random()<0.3){ const farTargets=enemies.filter(e=>Math.hypot(e.x-towerX,e.y-towerY)>rangePx);
+                    if(isUlt&&Math.random()<0.2){ const farTargets=enemies.filter(e=>Math.hypot(e.x-towerX,e.y-towerY)>rangePx);
                         if(farTargets.length>0){ const ft=farTargets[0]; ft.hp-=dmg*1.5;
                             effects.push({life:0.5, x:ft.x, y:ft.y, r:rangePx*0.5, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}}); } }
                     break;
