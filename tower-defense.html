@@ -1806,34 +1806,38 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         
         function performDemoAttack(type, isUlt, targets){
             const dmg=baseDmg;
+            const CELL=demoCellSize;
             switch(type){
                 case 'arrow': {
                     const dirs4=[[1,0],[-1,0],[0,1],[0,-1]];
                     for(const [dx,dy] of dirs4){
                         const ex=towerX+dx*60, ey=towerY+dy*60;
-                        effects.push({life:0.3, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${0.9*a})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex,ey);ctx.stroke();ctx.restore();}});
+                        // 箭矢弹道(箭头+尾翼)
+                        effects.push({life:0.3, ex, ey, dx, dy, draw(ctx){const a=this.life/0.2;const ux=dx,uy=dy;const t=1-this.life/0.3;const cx=towerX+dx*60*t,cy=towerY+dy*60*t;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${a})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-ux*8,cy-uy*8);ctx.lineTo(cx+ux*4,cy+uy*4);ctx.stroke();ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.beginPath();ctx.moveTo(cx+ux*4,cy+uy*4);ctx.lineTo(cx+ux*4-uy*3,cy+uy*4+ux*3);ctx.lineTo(cx+ux*4+uy*3,cy+uy*4-ux*3);ctx.fill();ctx.restore();}});
                         for(const e of targets){
-                            if(dx!==0&&Math.abs(e.y-towerY)<demoCellSize*0.8&&(e.x-towerX)*dx>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
-                            if(dy!==0&&Math.abs(e.x-towerX)<demoCellSize*0.8&&(e.y-towerY)*dy>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
+                            if(dx!==0&&Math.abs(e.y-towerY)<CELL*0.8&&(e.x-towerX)*dx>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
+                            if(dy!==0&&Math.abs(e.x-towerX)<CELL*0.8&&(e.y-towerY)*dy>0){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffe080',3); }
                         }
                     }
                     if(isUlt&&Math.random()<0.1){
-                        for(let a=0;a<8;a++){ const ang=a*Math.PI/4; const ex=towerX+Math.cos(ang)*55, ey=towerY+Math.sin(ang)*55;
-                            effects.push({life:0.25, draw(ctx){const a2=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${0.7*a2})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex,ey);ctx.stroke();ctx.restore();}}); }
+                        for(let a=0;a<8;a++){ const ang=a*Math.PI/4; const ex2=towerX+Math.cos(ang)*CELL*3, ey2=towerY+Math.sin(ang)*CELL*3;
+                            effects.push({life:0.25, sx:towerX, sy:towerY, ex:ex2, ey:ey2, draw(ctx){const a2=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,220,100,${a2})`;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
                         for(const e of targets){ e.hp-=dmg*0.5; }
-                        spawnDemoParticles(particles,towerX,towerY,'#ffdd44',8);
+                        spawnDemoParticles(particles,towerX,towerY,'#ffdd44',12);
                     }
                     break;
                 }
                 case 'ice': {
                     for(const e of targets){ e.hp-=dmg; e.slowed=2; e.frozen=Math.max(e.frozen,1); spawnDemoParticles(particles,e.x,e.y,'#aaeeff',5); }
-                    effects.push({life:0.4, draw(ctx){const a=this.life/0.4;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(towerX,towerY,rangePx,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.08*a})`;ctx.fill();ctx.restore();}});
-                    for(let i=0;i<8;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:(Math.random()-0.5)*20,vy:(Math.random()-0.5)*20,life:0.8,color:'#ccffff'});}
+                    // 冰雾光环
+                    effects.push({life:0.4, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(towerX,towerY,rangePx,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.08*a})`;ctx.fill();ctx.restore();}});
+                    // 12个冰雾粒子
+                    for(let i=0;i<12;i++){const ang=Math.random()*Math.PI*2, rad=Math.random()*rangePx;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:(Math.random()-0.5)*20,vy:(Math.random()-0.5)*20,life:0.8,color:'#ccffff'});}
                     if(isUlt&&Math.random()<0.15){
                         const isX=Math.random()<0.5;
                         const dirs=isX?[[1,1],[1,-1],[-1,1],[-1,-1]]:[[1,0],[-1,0],[0,1],[0,-1]];
                         for(const [dx,dy] of dirs){ const ex2=towerX+dx*rangePx, ey2=towerY+dy*rangePx;
-                            effects.push({life:0.4, draw(ctx){const a=this.life/0.4;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=demoCellSize*0.4;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(ex2,ey2);ctx.stroke();ctx.restore();}}); }
+                            effects.push({life:0.4, sx:towerX, sy:towerY, ex:ex2, ey:ey2, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.5*a})`;ctx.lineWidth=CELL*0.4;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
                         for(const e of targets){ e.slowed=3; e.frozen=2; e.hp-=dmg*0.5; }
                     }
                     break;
@@ -1842,16 +1846,20 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     const isToxic=type==='toxic';
                     const beamLen=rangePx;
                     for(const e of targets){ if(isToxic)e.poisoned=3; else e.burning=2; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,isToxic?'#88ff00':'#ff6600',4); }
-                    effects.push({life:0.25, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=demoCellSize*0.5;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
-                    for(let i=0;i<6;i++){const t2=Math.random();particles.push({x:towerX+beamLen*t2,y:towerY+(Math.random()-0.5)*demoCellSize*0.5,vx:30+(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:0.5,color:isToxic?'#66dd00':(Math.random()<0.5?'#ff6600':'#ffaa00')});}
+                    // 方向性光束(双层)
+                    effects.push({life:0.25, draw(ctx){const a=this.life/0.2;ctx.save();if(isToxic){ctx.strokeStyle=`rgba(100,220,0,${0.4*a})`;ctx.lineWidth=CELL*0.7;ctx.shadowColor='rgba(100,220,0,0.6)';ctx.shadowBlur=12;}else{ctx.strokeStyle=`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=CELL*0.5;ctx.shadowColor='rgba(255,120,0,0.8)';ctx.shadowBlur=18;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.strokeStyle=`rgba(255,200,50,${0.7*a})`;ctx.lineWidth=CELL*0.2;ctx.shadowColor='rgba(255,200,50,0.8)';ctx.shadowBlur=10;}ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
+                    // 粒子(火10个/毒8个)
+                    const pcount=isToxic?8:10;
+                    for(let i=0;i<pcount;i++){const t2=Math.random();const px=towerX+beamLen*t2+(Math.random()-0.5)*CELL*0.5;const py=towerY+(Math.random()-0.5)*CELL*0.5;const sz=isToxic?(3+Math.random()*3):(3+Math.random()*4*(1-t2*0.5));particles.push({x:px,y:py,vx:30+(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:isToxic?0.7:0.5,color:isToxic?'#66dd00':(Math.random()<0.5?'#ff6600':'#ffaa00')});}
                     if(isUlt){
-                        const halfRange=rangePx*1.2;
-                        // 长条延伸伤害0.8倍
+                        // 究极长条10格0.8倍
+                        const beamLen2=rangePx*1.3;
                         for(const e of targets){ if(isToxic)e.poisoned=Math.max(e.poisoned,5); else e.burning=Math.max(e.burning,4); e.hp-=dmg*0.8; }
-                        // 半圆范围伤害0.5倍
+                        effects.push({life:0.3, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.5*a})`:`rgba(255,100,0,${0.5*a})`;ctx.lineWidth=CELL*0.6;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.restore();}});
+                        // 半圆3格0.5倍
+                        const halfRange=CELL*3;
                         for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<halfRange){ e.hp-=dmg*0.5; if(isToxic)e.poisoned=Math.max(e.poisoned,3); else e.burning=Math.max(e.burning,2); } }
-                        effects.push({life:0.35, draw(ctx){const a=this.life/0.35;ctx.save();ctx.fillStyle=isToxic?`rgba(100,220,0,${0.15*a})`:`rgba(255,100,0,${0.15*a})`;ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.6*a})`:`rgba(255,100,0,${0.6*a})`;ctx.lineWidth=2;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.arc(towerX,towerY,halfRange,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}});
-                        for(let i=0;i<10;i++){const ang=-Math.PI/2+Math.random()*Math.PI;const rad=Math.random()*halfRange;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:0,vy:0,life:0.5,color:isToxic?'#66dd00':'#ff6600'});}
+                        effects.push({life:0.35, draw(ctx){const a=this.life/0.3;ctx.save();ctx.fillStyle=isToxic?`rgba(100,220,0,${0.15*a})`:`rgba(255,100,0,${0.15*a})`;ctx.strokeStyle=isToxic?`rgba(100,220,0,${0.6*a})`:`rgba(255,100,0,${0.6*a})`;ctx.lineWidth=2;ctx.shadowColor=isToxic?'rgba(100,220,0,0.6)':'rgba(255,120,0,0.6)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.arc(towerX,towerY,halfRange,-Math.PI/2,Math.PI/2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}});
                     }
                     break;
                 }
@@ -1859,22 +1867,27 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     if(targets.length===0)break;
                     const target=targets[0];
                     target.hp-=dmg;
-                    effects.push({life:0.2, sx:towerX, sy:towerY, ex:target.x, ey:target.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,100,${0.9*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<5;i++){const t=i/5;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*10,this.sy+dy*t+(Math.random()-0.5)*10);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}});
+                    // 主闪电(6段锯齿±15px)
+                    effects.push({life:0.2, sx:towerX, sy:towerY, ex:target.x, ey:target.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,255,100,${0.9*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=18;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<6;i++){const t=i/6;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*15,this.sy+dy*t+(Math.random()-0.5)*15);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(this.sx,this.sy);for(let i=1;i<6;i++){const t=i/6;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*15,this.sy+dy*t+(Math.random()-0.5)*15);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}});
                     spawnDemoParticles(particles,target.x,target.y,'#ffff66',6);
+                    // 连锁闪电(4段锯齿±10px)
                     for(let i=1;i<targets.length;i++){ const e2=targets[i]; e2.hp-=dmg*0.4;
-                        effects.push({life:0.15, sx:target.x, sy:target.y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,255,150,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.7)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let j=1;j<4;j++){const t=j/4;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*8,this.sy+dy*t+(Math.random()-0.5)*8);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
+                        effects.push({life:0.15, sx:target.x, sy:target.y, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.1;ctx.save();ctx.strokeStyle=`rgba(255,255,150,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.7)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let j=1;j<4;j++){const t=j/4;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*10,this.sy+dy*t+(Math.random()-0.5)*10);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
+                    // 究极高压电(8段锯齿±20px,紫色)
                     if(isUlt&&Math.random()<0.2){ const hpTarget=targets.reduce((a,b)=>b.hp>a.hp?b:a,targets[0]); hpTarget.hp-=dmg*2;
-                        effects.push({life:0.3, sx:towerX, sy:towerY, ex:hpTarget.x, ey:hpTarget.y, draw(ctx){const a=this.life/0.3;ctx.save();ctx.strokeStyle=`rgba(255,0,255,${0.9*a})`;ctx.lineWidth=5;ctx.shadowColor='rgba(255,0,255,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<7;i++){const t=i/7;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*15,this.sy+dy*t+(Math.random()-0.5)*15);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
+                        effects.push({life:0.3, sx:towerX, sy:towerY, ex:hpTarget.x, ey:hpTarget.y, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(255,0,255,${0.9*a})`;ctx.lineWidth=6;ctx.shadowColor='rgba(255,0,255,0.9)';ctx.shadowBlur=25;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx=this.ex-this.sx,dy=this.ey-this.sy;for(let i=1;i<8;i++){const t=i/8;ctx.lineTo(this.sx+dx*t+(Math.random()-0.5)*20,this.sy+dy*t+(Math.random()-0.5)*20);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); }
                     break;
                 }
                 case 'cannon': {
                     if(targets.length===0)break;
                     const target=targets[0];
                     target.hp-=dmg;
-                    effects.push({life:0.2, sx:towerX, sy:towerY, ex:target.x, ey:target.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.8*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.beginPath();ctx.arc(this.ex,this.ey,5,0,Math.PI*2);ctx.fill();ctx.restore();}});
-                    spawnDemoParticles(particles,target.x,target.y,'#ffaa44',6);
+                    // 光粒+光晕
+                    effects.push({life:0.2, sx:towerX, sy:towerY, ex:target.x, ey:target.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.8*a})`;ctx.lineWidth=6;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.fillStyle=`rgba(255,255,200,${a})`;ctx.beginPath();ctx.arc(this.ex,this.ey,5+3*(1-a),0,Math.PI*2);ctx.fill();ctx.restore();}});
+                    spawnDemoParticles(particles,target.x,target.y,'#ffaa44',8);
+                    // 究极3层光束
                     if(isUlt){ const beamLen2=W*1.5;
-                        effects.push({life:0.28, draw(ctx){const a=this.life/0.28;ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.5*a})`;ctx.lineWidth=8;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.strokeStyle=`rgba(255,210,90,${0.7*a})`;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.restore();}});
+                        effects.push({life:0.28, draw(ctx){const alpha=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,160,40,${0.55*alpha})`;ctx.lineWidth=12;ctx.shadowColor='rgba(255,140,20,0.9)';ctx.shadowBlur=28;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.strokeStyle=`rgba(255,210,90,${0.75*alpha})`;ctx.lineWidth=5;ctx.shadowColor='rgba(255,200,60,0.8)';ctx.shadowBlur=14;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${alpha})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,255,0.95)';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen2,towerY);ctx.stroke();ctx.restore();}});
                         for(const e of targets)e.hp-=dmg;
                     }
                     break;
@@ -1882,36 +1895,41 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                 case 'nuke': {
                     if(targets.length===0)break;
                     const target=targets[0];
-                    const nukeR=demoCellSize*2.5;
+                    const nukeR=CELL*2.5;
+                    // 5×5范围粒子
+                    for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){ spawnDemoParticles(particles,target.x+dc*CELL,target.y+dr*CELL,'#ff6600',3); }
                     for(const e of enemies){ if(Math.hypot(e.x-target.x,e.y-target.y)<nukeR){ e.hp-=dmg; e.burning=3; } }
                     effects.push({life:0.5, x:target.x, y:target.y, r:nukeR, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,100,0,0.8)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(255,100,0,${0.15*a})`;ctx.fill();ctx.restore();}});
-                    spawnDemoParticles(particles,target.x,target.y,'#ff3300',20);
+                    spawnDemoParticles(particles,target.x,target.y,'#ff3300',40);
                     if(isUlt&&Math.random()<0.3){ const t2=enemies[Math.floor(Math.random()*enemies.length)];
                         for(const e of enemies){ if(Math.hypot(e.x-t2.x,e.y-t2.y)<nukeR)e.hp-=dmg*0.7; }
                         effects.push({life:0.5, x:t2.x, y:t2.y, r:nukeR, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(255,100,0,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,100,0,0.8)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}});
-                        spawnDemoParticles(particles,t2.x,t2.y,'#ff6600',15);
+                        spawnDemoParticles(particles,t2.x,t2.y,'#ff6600',30);
                     }
                     break;
                 }
                 case 'potion': {
                     for(const e of targets){ const r=Math.random(); if(r<0.25)e.slowed=4; else if(r<0.5)e.poisoned=5; else if(r<0.75)e.burning=3; else e.frozen=2; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#cc44ff',4); }
-                    effects.push({life:0.5, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.fill();ctx.restore();}});
-                    for(let i=0;i<6;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX,y:towerY,vx:Math.cos(ang)*60,vy:Math.sin(ang)*60,life:0.6,color:['#cc44ff','#ff44aa','#44ddff'][Math.floor(Math.random()*3)]});}
+                    // 紫色光环
+                    effects.push({life:0.5, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.4;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.fill();ctx.restore();}});
+                    // 10个彩色粒子
+                    for(let i=0;i<10;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX,y:towerY,vx:Math.cos(ang)*80,vy:Math.sin(ang)*80,life:0.6,color:['#cc44ff','#ff44aa','#44ddff'][Math.floor(Math.random()*3)]});}
                     if(isUlt&&Math.random()<0.2){ const farTargets=enemies.filter(e=>Math.hypot(e.x-towerX,e.y-towerY)>rangePx);
                         if(farTargets.length>0){ const ft=farTargets[0]; ft.hp-=dmg*1.5;
-                            effects.push({life:0.5, x:ft.x, y:ft.y, r:rangePx*0.5, draw(ctx){const a=this.life/0.5;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}}); } }
+                            effects.push({life:0.5, x:ft.x, y:ft.y, r:rangePx*0.5, draw(ctx){const a=this.life/0.4;const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.restore();}}); } }
                     break;
                 }
                 case 'fan': {
                     const beamLen=rangePx;
-                    for(const e of targets){ e.hp-=dmg; e.x+=demoCellSize*2; if(e.x>W-20)e.x=W-20; spawnDemoParticles(particles,e.x,e.y,'#88eeff',4); }
-                    effects.push({life:0.25, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(150,230,255,${0.5*a})`;ctx.lineWidth=demoCellSize*0.4;ctx.shadowColor='rgba(150,230,255,0.7)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
+                    for(const e of targets){ e.hp-=dmg; e.x+=CELL*2; if(e.x>W-20)e.x=W-20; spawnDemoParticles(particles,e.x,e.y,'#88eeff',6); }
+                    effects.push({life:0.25, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(150,230,255,${0.5*a})`;ctx.lineWidth=CELL*0.4;ctx.shadowColor='rgba(150,230,255,0.7)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,towerY);ctx.lineTo(towerX+beamLen,towerY);ctx.stroke();ctx.restore();}});
                     break;
                 }
                 case 'storm': {
-                    for(const e of targets){ const dx=e.x-towerX, dy=e.y-towerY, dist=Math.hypot(dx,dy)||1; e.x+=(dx/dist)*demoCellSize*1.5; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#88ddff',4); }
-                    effects.push({life:0.35, draw(ctx){const a=this.life/0.35;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.6*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=12;for(let i=0;i<3;i++){ctx.beginPath();const startAng=frameCount*0.05+i*Math.PI*0.6;ctx.arc(towerX,towerY,rangePx*(0.5+0.5*Math.sin(startAng)),startAng,startAng+Math.PI*1.2);ctx.stroke();}ctx.restore();}});
-                    for(let i=0;i<6;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:Math.cos(ang)*50,vy:Math.sin(ang)*50,life:0.4,color:'#aaeeff'});}
+                    for(const e of targets){ const dx=e.x-towerX, dy=e.y-towerY, dist=Math.hypot(dx,dy)||1; e.x+=(dx/dist)*CELL*1.5; e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#88ddff',6); }
+                    // 3条旋转弧线(用Date.now)
+                    effects.push({life:0.35, draw(ctx){const a=this.life/0.25;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.6*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(150,220,255,0.8)';ctx.shadowBlur=15;for(let i=0;i<3;i++){ctx.beginPath();const startAng=Date.now()*0.005+i*Math.PI*0.6;ctx.arc(towerX,towerY,rangePx*(0.5+0.5*Math.sin(startAng)),startAng,startAng+Math.PI*1.2);ctx.stroke();}ctx.restore();}});
+                    for(let i=0;i<8;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:Math.cos(ang)*60,vy:Math.sin(ang)*60,life:0.4,color:'#aaeeff'});}
                     break;
                 }
                 case 'repair': {
@@ -1920,52 +1938,49 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     break;
                 }
                 case 'lamp': {
-                    // 持续照明范围(不用effects，在主循环外画) - 这里只生成偶尔的金色粒子
                     for(let i=0;i<2;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.7,y:towerY+Math.sin(ang)*rangePx*0.7,vx:0,vy:0,life:0.8,color:'#FFD700'});}
                     break;
                 }
                 case 'dynamite': {
-                    // 炸药包:范围爆炸(自身位置),一次性
                     const explodeR=rangePx;
                     for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<explodeR){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffaa00',4); } }
                     effects.push({life:0.6, x:towerX, y:towerY, r:explodeR, draw(ctx){const a=this.life/0.6;const t=1-this.life/0.6;ctx.save();ctx.strokeStyle=`rgba(255,170,0,${0.8*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,140,0,0.9)';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(255,170,0,${0.15*a})`;ctx.fill();ctx.restore();}});
-                    spawnDemoParticles(particles,towerX,towerY,'#ffaa00',25);
-                    attackCD=3; // 炸药包爆炸后3秒重置(演示循环)
+                    spawnDemoParticles(particles,towerX,towerY,'#ffaa00',30);
+                    attackCD=3;
                     break;
                 }
                 case 'windWall': {
-                    // 风障:摧毁所有飞行敌人,一次性
-                    for(const e of enemies){ e.hp=0; e.maxHP=50; spawnDemoParticles(particles,e.x,e.y,'#88ff88',6); }
+                    for(const e of enemies){ e.hp=0; spawnDemoParticles(particles,e.x,e.y,'#88ff88',6); }
                     effects.push({life:0.5, draw(ctx){const a=this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(100,255,100,${0.6*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(100,255,100,0.8)';ctx.shadowBlur=15;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(towerX,towerY,rangePx*(0.3+0.7*(1-a))+i*5,0,Math.PI*2);ctx.stroke();}ctx.restore();}});
-                    spawnDemoParticles(particles,towerX,towerY,'#88ff88',20);
+                    spawnDemoParticles(particles,towerX,towerY,'#88ff88',25);
                     attackCD=3;
                     break;
                 }
                 case 'iceBomb': {
-                    // 极寒之冰:范围冰冻+伤害,一次性
                     for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<rangePx){ e.hp-=dmg; e.frozen=5; e.slowed=5; spawnDemoParticles(particles,e.x,e.y,'#88ccff',5); } }
                     effects.push({life:0.7, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.7;const t=1-this.life/0.7;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(150,220,255,0.9)';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.12*a})`;ctx.fill();ctx.restore();}});
-                    for(let i=0;i<20;i++){const ang=Math.random()*Math.PI*2;particles.push({x:towerX+Math.cos(ang)*rangePx*0.5,y:towerY+Math.sin(ang)*rangePx*0.5,vx:(Math.random()-0.5)*40,vy:(Math.random()-0.5)*40,life:1,color:'#ccffff'});}
+                    spawnDemoParticles(particles,towerX,towerY,'#88ccff',30);
                     attackCD=3;
                     break;
                 }
                 case 'blackhole': {
-                    // 黑洞:吞噬全场怪物,一次性
-                    for(const e of enemies){ e.hp=0; e.maxHP=50; }
+                    for(const e of enemies){ e.hp=0; }
                     effects.push({life:1.2, x:towerX, y:towerY, draw(ctx){const a=this.life/1.2;const t=1-this.life/1.2;ctx.save();ctx.translate(this.x,this.y);ctx.rotate(t*Math.PI*4);ctx.strokeStyle=`rgba(170,0,255,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(170,0,255,0.9)';ctx.shadowBlur=25;for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(0,0,5+i*8*t,0,Math.PI*1.5);ctx.stroke();}ctx.fillStyle=`rgba(50,0,80,${0.3*a})`;ctx.beginPath();ctx.arc(0,0,15*t,0,Math.PI*2);ctx.fill();ctx.restore();}});
-                    for(let i=0;i<40;i++){const ang=Math.random()*Math.PI*2;const rad=Math.random()*rangePx;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:-Math.cos(ang)*60,vy:-Math.sin(ang)*60,life:1.2,color:'#aa00ff'});}
+                    for(let i=0;i<80;i++){const ang=Math.random()*Math.PI*2;const rad=Math.random()*rangePx;particles.push({x:towerX+Math.cos(ang)*rad,y:towerY+Math.sin(ang)*rad,vx:-Math.cos(ang)*300,vy:-Math.sin(ang)*300,life:1.2,color:'#aa00ff'});}
+                    spawnDemoParticles(particles,towerX,towerY,'#aa00ff',60);
                     attackCD=4;
                     break;
                 }
                 case 'wireNet': {
-                    // 电线网:上下两个端点中间垂直放电
+                    // 电线网:上下端点直线电光束(不是锯齿!)
                     const topY=towerY-rangePx*0.6, botY=towerY+rangePx*0.6;
                     let hitAny=false, hitWet=false;
-                    for(const e of targets){ const wasWet=e.wet>0; e.hp-=dmg; e.shocked=1; hitAny=true; if(wasWet){hitWet=true; e.hp-=dmg*0.5; spawnDemoParticles(particles,e.x,e.y,'#ffff00',6);} else {spawnDemoParticles(particles,e.x,e.y,'#88ccff',4);} }
+                    for(const e of targets){ const wasWet=e.wet>0; e.hp-=dmg; e.shocked=1; hitAny=true; if(wasWet){hitWet=true; e.hp-=dmg*0.5; spawnDemoParticles(particles,e.x,e.y,'#ffff00',8); spawnDemoParticles(particles,e.x,e.y,'#88ccff',6);} else {spawnDemoParticles(particles,e.x,e.y,'#88ccff',4);} }
                     if(hitAny){
-                        // 垂直锯齿状闪电(上下端点之间)
-                        effects.push({life:0.15, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=hitWet?`rgba(255,255,0,${0.9*a})`:`rgba(100,200,255,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(towerX,topY);const segs=6;const dy=botY-topY;for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+(Math.random()-0.5)*10,topY+dy*t);}ctx.lineTo(towerX,botY);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(towerX,topY);for(let i=1;i<segs;i++){const t=i/segs;ctx.lineTo(towerX+(Math.random()-0.5)*10,topY+dy*t);}ctx.lineTo(towerX,botY);ctx.stroke();ctx.restore();}});
-                        if(hitWet){ for(const e2 of enemies){ if(e2.wet>0&&Math.random()<0.5){ effects.push({life:0.2, sx:towerX, sy:towerY, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.2;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.7*a})`;ctx.lineWidth=2;ctx.shadowColor='rgba(255,255,0,0.8)';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(this.sx,this.sy);const dx2=this.ex-this.sx,dy2=this.ey-this.sy;for(let i=1;i<4;i++){const t=i/4;ctx.lineTo(this.sx+dx2*t+(Math.random()-0.5)*6,this.sy+dy2*t+(Math.random()-0.5)*6);}ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
+                        // 直线电光束(双层)
+                        effects.push({life:0.15, draw(ctx){const a=this.life/0.1;ctx.save();ctx.strokeStyle=hitWet?`rgba(255,255,0,${0.7*a})`:`rgba(100,200,255,${0.9*a})`;ctx.lineWidth=4;ctx.shadowColor=hitWet?'rgba(255,255,0,0.9)':'rgba(100,200,255,0.9)';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(towerX,topY);ctx.lineTo(towerX,botY);ctx.stroke();ctx.strokeStyle=`rgba(255,255,255,${a})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(towerX,topY);ctx.lineTo(towerX,botY);ctx.stroke();ctx.restore();}});
+                        // 湿敌人连锁(直线)
+                        if(hitWet){ for(const e2 of enemies){ if(e2.wet>0&&Math.random()<0.5){ effects.push({life:0.2, sx:towerX, sy:towerY, ex:e2.x, ey:e2.y, draw(ctx){const a=this.life/0.15;ctx.save();ctx.strokeStyle=`rgba(255,255,0,${0.8*a})`;ctx.lineWidth=3;ctx.shadowColor='rgba(255,255,0,0.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } } }
                     }
                     if(frameCount%60===0){ for(const e of enemies){ if(Math.random()<0.3)e.wet=3; } }
                     for(const e of enemies){ if(e.wet>0)e.wet-=1/60; }
@@ -1975,7 +1990,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     if(targets.length===0)break;
                     const target=targets[0]; target.hp-=dmg;
                     const angle=Math.atan2(target.y-towerY,target.x-towerX);
-                    projectiles.push({x:towerX,y:towerY,vx:Math.cos(angle)*3,vy:Math.sin(angle)*3,life:1,draw(ctx){ctx.save();ctx.globalAlpha=this.life;ctx.fillStyle=getTowerAttackColor(type);ctx.shadowColor=getTowerAttackColor(type);ctx.shadowBlur=6;ctx.beginPath();ctx.arc(this.x,this.y,2.5,0,Math.PI*2);ctx.fill();ctx.restore();}});
+                    projectiles.push({x:towerX,y:towerY,vx:Math.cos(angle)*3,vy:Math.sin(angle)*3,life:1,draw(ctx){ctx.save();ctx.globalAlpha=this.life;ctx.fillStyle=getTowerAttackColor(type);ctx.shadowColor=getTowerAttackColor(type);ctx.shadowBlur=3;ctx.beginPath();ctx.arc(this.x,this.y,2.5,0,Math.PI*2);ctx.fill();ctx.restore();}});
                     spawnDemoParticles(particles,target.x,target.y,getTowerAttackColor(type),3);
                 }
             }
