@@ -1719,27 +1719,42 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         const rangePx=Math.min(baseRange*demoCellSize, W*0.7);
         const isDirectional = (towerType==='fire'||towerType==='toxic'||towerType==='fan');
         
+        // 预渲染静态背景到离屏canvas(大幅提升性能)
+        const bgCanvas=document.createElement('canvas');
+        bgCanvas.width=W; bgCanvas.height=H;
+        const bgCtx=bgCanvas.getContext('2d');
+        bgCtx.fillStyle='#0a0a1a'; bgCtx.fillRect(0,0,W,H);
+        bgCtx.strokeStyle='#1a1a2a'; bgCtx.lineWidth=0.5;
+        for(let x=0;x<=W;x+=demoCellSize){ bgCtx.beginPath(); bgCtx.moveTo(x,0); bgCtx.lineTo(x,H); bgCtx.stroke(); }
+        for(let y=0;y<=H;y+=demoCellSize){ bgCtx.beginPath(); bgCtx.moveTo(0,y); bgCtx.lineTo(W,y); bgCtx.stroke(); }
+        // 射程范围也预渲染
+        if(!isDirectional){
+            bgCtx.strokeStyle='rgba(100,100,200,0.2)'; bgCtx.beginPath(); bgCtx.arc(towerX,towerY,rangePx,0,Math.PI*2); bgCtx.stroke();
+        } else {
+            bgCtx.strokeStyle='rgba(100,100,200,0.15)'; bgCtx.lineWidth=1;
+            bgCtx.beginPath(); bgCtx.moveTo(towerX, towerY);
+            bgCtx.lineTo(towerX+rangePx, towerY-demoCellSize*0.7);
+            bgCtx.lineTo(towerX+rangePx, towerY+demoCellSize*0.7);
+            bgCtx.closePath(); bgCtx.stroke();
+        }
+        if(towerType==='lamp'){
+            const lg=bgCtx.createRadialGradient(towerX,towerY,0,towerX,towerY,rangePx);
+            lg.addColorStop(0,'rgba(255,215,0,0.15)');
+            lg.addColorStop(1,'rgba(255,215,0,0)');
+            bgCtx.fillStyle=lg; bgCtx.beginPath(); bgCtx.arc(towerX,towerY,rangePx,0,Math.PI*2); bgCtx.fill();
+            bgCtx.strokeStyle='rgba(255,215,0,0.3)'; bgCtx.lineWidth=1; bgCtx.stroke();
+        }
+        if(towerType==='wireNet'){
+            const ex2=towerX+rangePx, ey2=towerY;
+            bgCtx.fillStyle='#88ccff'; bgCtx.beginPath(); bgCtx.arc(ex2,ey2,5,0,Math.PI*2); bgCtx.fill();
+            bgCtx.strokeStyle='rgba(100,200,255,0.3)'; bgCtx.lineWidth=1; bgCtx.setLineDash([3,3]); bgCtx.beginPath(); bgCtx.moveTo(towerX,towerY); bgCtx.lineTo(ex2,ey2); bgCtx.stroke(); bgCtx.setLineDash([]);
+        }
+        
         function animate(){
             if(!document.getElementById('demoCanvas_'+towerType))return;
             const isUltimate=_demoUltimateMode[towerType]||false;
             frameCount++;
-            ctx.clearRect(0,0,W,H);
-            // 背景
-            ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,W,H);
-            // 地面格子
-            ctx.strokeStyle='#1a1a2a'; ctx.lineWidth=0.5;
-            for(let x=0;x<=W;x+=demoCellSize){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-            for(let y=0;y<=H;y+=demoCellSize){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-            // 射程范围
-            if(!isDirectional){
-                ctx.strokeStyle='rgba(100,100,200,0.2)'; ctx.beginPath(); ctx.arc(towerX,towerY,rangePx,0,Math.PI*2); ctx.stroke();
-            } else {
-                ctx.strokeStyle='rgba(100,100,200,0.15)'; ctx.lineWidth=1;
-                ctx.beginPath(); ctx.moveTo(towerX, towerY);
-                ctx.lineTo(towerX+rangePx, towerY-demoCellSize*0.7);
-                ctx.lineTo(towerX+rangePx, towerY+demoCellSize*0.7);
-                ctx.closePath(); ctx.stroke();
-            }
+            ctx.drawImage(bgCanvas,0,0);
             // 敌人移动
             for(const e of enemies){
                 if(e.frozen>0){ e.frozen-=1/60; }
@@ -1769,27 +1784,12 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             // 更新效果
             for(const ef of effects){ ef.life-=1/60; if(ef.draw)ef.draw(ctx); }
             effects=effects.filter(ef=>ef.life>0);
-            // 更新粒子
+            // 更新粒子(限制数量避免卡顿)
             for(const pt of particles){ pt.x+=pt.vx; pt.y+=pt.vy; pt.life-=0.03; }
             particles=particles.filter(pt=>pt.life>0);
+            if(particles.length>60)particles=particles.slice(-60);
             for(const pt of particles){ ctx.globalAlpha=pt.life; ctx.fillStyle=pt.color; ctx.fillRect(pt.x-1,pt.y-1,3,3); }
             ctx.globalAlpha=1;
-            if(towerType==='lamp'){
-                ctx.save();
-                const g=ctx.createRadialGradient(towerX,towerY,0,towerX,towerY,rangePx);
-                g.addColorStop(0,'rgba(255,215,0,0.15)');
-                g.addColorStop(1,'rgba(255,215,0,0)');
-                ctx.fillStyle=g; ctx.beginPath(); ctx.arc(towerX,towerY,rangePx,0,Math.PI*2); ctx.fill();
-                ctx.strokeStyle='rgba(255,215,0,0.3)'; ctx.lineWidth=1; ctx.stroke();
-                ctx.restore();
-            }
-            if(towerType==='wireNet'){
-                const ex2=towerX+rangePx, ey2=towerY;
-                ctx.save();
-                ctx.fillStyle='#88ccff'; ctx.beginPath(); ctx.arc(ex2,ey2,5,0,Math.PI*2); ctx.fill();
-                ctx.strokeStyle='rgba(100,200,255,0.3)'; ctx.lineWidth=1; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(towerX,towerY); ctx.lineTo(ex2,ey2); ctx.stroke(); ctx.setLineDash([]);
-                ctx.restore();
-            }
             // 画炮塔和敌人
             drawDemoTower(ctx, towerX, towerY, towerType, isUltimate, frameCount);
             for(const e of enemies){ let alpha=1; if(towerType==='lamp'){ const inLight=Math.hypot(e.x-towerX,e.y-towerY)<rangePx; alpha=inLight?1:0.25; } ctx.globalAlpha=alpha; drawDemoEnemy(ctx, e.x, e.y, e.hp, e.maxHP, e); ctx.globalAlpha=1; }
@@ -1947,7 +1947,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
     function drawDemoProjectile(ctx, p, type){
         const colors={arrow:'#88ff88',ice:'#88ccff',fire:'#ff6644',toxic:'#88ff44',tesla:'#ffff44',cannon:'#ffaa44',nuke:'#ff4444',potion:'#ff88ff',storm:'#88ddff',fan:'#aaeeff',dynamite:'#ffaa00',blackhole:'#aa00ff',wireNet:'#88ccff'};
         ctx.fillStyle=colors[type]||'#ffffff';
-        ctx.shadowColor=colors[type]||'#ffffff'; ctx.shadowBlur=6;
+        ctx.shadowColor=colors[type]||'#ffffff'; ctx.shadowBlur=3;
         if(type==='tesla'||type==='wireNet'){ ctx.strokeStyle=colors[type]; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(p.x-p.vx*3,p.y-p.vy*3); ctx.lineTo(p.x,p.y); ctx.stroke(); }
         else if(type==='fire'||type==='toxic'){ ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); }
         else { ctx.beginPath(); ctx.arc(p.x,p.y,2.5,0,Math.PI*2); ctx.fill(); }
