@@ -1790,14 +1790,6 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                 ctx.strokeStyle='rgba(100,200,255,0.3)'; ctx.lineWidth=1; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(towerX,towerY); ctx.lineTo(ex2,ey2); ctx.stroke(); ctx.setLineDash([]);
                 ctx.restore();
             }
-            if(towerType==='mirror'){
-                ctx.save();
-                ctx.translate(towerX,towerY);
-                ctx.rotate(Math.PI/4);
-                ctx.fillStyle='rgba(200,220,255,0.3)'; ctx.fillRect(-10,-2,20,4);
-                ctx.strokeStyle='rgba(200,220,255,0.6)'; ctx.strokeRect(-10,-2,20,4);
-                ctx.restore();
-            }
             // 画炮塔和敌人
             drawDemoTower(ctx, towerX, towerY, towerType, isUltimate, frameCount);
             for(const e of enemies){ let alpha=1; if(towerType==='lamp'){ const inLight=Math.hypot(e.x-towerX,e.y-towerY)<rangePx; alpha=inLight?1:0.25; } ctx.globalAlpha=alpha; drawDemoEnemy(ctx, e.x, e.y, e.hp, e.maxHP, e); ctx.globalAlpha=1; }
@@ -1937,16 +1929,6 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     for(const e of enemies){ if(e.wet>0)e.wet-=1/60; }
                     break;
                 }
-                case 'mirror': {
-                    // 镜子不主动攻击，但演示反射光束
-                    // 模拟一束光从左上射来，被镜子反射到右上
-                    const incomingX=towerX-30, incomingY=towerY-30;
-                    const reflectX=towerX+60, reflectY=towerY-30;
-                    effects.push({life:0.4, draw(ctx){const a=this.life/0.4;ctx.save();ctx.strokeStyle=`rgba(255,210,90,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(255,200,60,0.8)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(incomingX,incomingY);ctx.lineTo(towerX,towerY);ctx.lineTo(reflectX,reflectY);ctx.stroke();ctx.restore();}});
-                    // 反射光束伤害敌人
-                    for(const e of targets){ if(e.x>towerX&&e.y<towerY+15){ e.hp-=dmg; spawnDemoParticles(particles,e.x,e.y,'#ffaa44',4); } }
-                    break;
-                }
                 default: {
                     if(targets.length===0)break;
                     const target=targets[0]; target.hp-=dmg;
@@ -1959,7 +1941,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         animate();
     }
     function getTowerAttackColor(type){
-        const colors={arrow:'#88ff88',ice:'#88ccff',fire:'#ff6644',toxic:'#88ff44',tesla:'#ffff44',cannon:'#ffaa44',nuke:'#ff4444',repair:'#44ff44',mine:'#88ccff',potion:'#ff88ff',storm:'#88ddff',fan:'#aaeeff',lamp:'#FFD700',dynamite:'#ffaa00',windWall:'#88ff88',iceBomb:'#88ccff',blackhole:'#aa00ff',wireNet:'#88ccff',mirror:'#dddddd'};
+        const colors={arrow:'#88ff88',ice:'#88ccff',fire:'#ff6644',toxic:'#88ff44',tesla:'#ffff44',cannon:'#ffaa44',nuke:'#ff4444',repair:'#44ff44',mine:'#88ccff',potion:'#ff88ff',storm:'#88ddff',fan:'#aaeeff',lamp:'#FFD700',dynamite:'#ffaa00',windWall:'#88ff88',iceBomb:'#88ccff',blackhole:'#aa00ff',wireNet:'#88ccff'};
         return colors[type]||'#ffffff';
     }
     function drawDemoProjectile(ctx, p, type){
