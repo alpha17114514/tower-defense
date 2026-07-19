@@ -1702,9 +1702,9 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         const towerX=40, towerY=H/2;
         // 多个敌人展示范围攻击
         let enemies=[
-            {x:W-40, y:H/2-15, hp:50, maxHP:50, speed:0.3, burning:0, poisoned:0, frozen:0, slowed:0},
-            {x:W-70, y:H/2+10, hp:50, maxHP:50, speed:0.25, burning:0, poisoned:0, frozen:0, slowed:0},
-            {x:W-100, y:H/2-5, hp:50, maxHP:50, speed:0.28, burning:0, poisoned:0, frozen:0, slowed:0}
+            {x:W-40, y:H/2-15, hp:50, maxHP:50, speed:1.0, burning:0, poisoned:0, frozen:0, slowed:0},
+            {x:W-70, y:H/2+10, hp:50, maxHP:50, speed:0.85, burning:0, poisoned:0, frozen:0, slowed:0},
+            {x:W-100, y:H/2-5, hp:50, maxHP:50, speed:0.95, burning:0, poisoned:0, frozen:0, slowed:0}
         ];
         let attackCD=0;
         let projectiles=[];
