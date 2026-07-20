@@ -1770,7 +1770,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                 if(e.burning>0){ e.burning-=1/60; if(frameCount%4===0)spawnDemoParticles(particles,e.x,e.y,'#ff6600',1); }
                 if(e.poisoned>0){ e.poisoned-=1/60; if(frameCount%4===0)spawnDemoParticles(particles,e.x,e.y,'#88ff00',1); }
                 if(e.x<towerX+25){ e.x=W-30+Math.random()*20; e.hp=e.maxHP; e.burning=0; e.poisoned=0; e.frozen=0; e.slowed=0; }
-                if(e.hp<0)e.hp=e.maxHP;
+                if(e.hp<=0){ spawnDemoParticles(particles,e.x,e.y,'#ff4444',15); e.x=W-30+Math.random()*20; e.hp=e.maxHP; e.burning=0; e.poisoned=0; e.frozen=0; e.slowed=0; }
             }
             // 攻击逻辑
             attackCD-=1/60;
