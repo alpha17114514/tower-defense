@@ -516,11 +516,11 @@
                 const gr=Math.floor(this.subY/CELL_SIZE), gc=Math.floor(this.subX/CELL_SIZE);
                 if(gr>=0&&gr<ROWS&&gc>=0&&gc<COLS){ const cell=grid[gr][gc]; if(cell.type==='obstacle'){ const up=cell.obstacleUpgrades||{};
                     if(cell.obstacleType==='water'){ this.slowed=3; this.slowAmount=Math.min(0.7, (up.slow?0.25+up.slow*0.04:0.25)); this.wet=4; }
-                    else if(cell.obstacleType==='lava'){ this.burning=3; this.burnDPS=8+(up.burn?up.burn*2:0); this.slowed=2; }
+                    else if(cell.obstacleType==='lava'){ this.burning=3; this.burnDPS=8+(up.burn?up.burn*2:0); this.slowed=Math.max(this.slowed,2); this.slowAmount=Math.max(this.slowAmount||0,0.3); }
                     else if(cell.obstacleType==='stone'){ cell.obstacleHP-=this.damage*0.3; if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } else { this.subX-=(dx/dist)*move; this.subY-=(dy/dist)*move; this.x=this.subX; this.y=this.subY; } }
                     else if(cell.obstacleType==='cactus'){ cell.obstacleHP-=this.damage*0.2; this.takeDamage(3+(up.thorns?up.thorns*1.5:0),'physical'); if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } else { this.subX-=(dx/dist)*move; this.subY-=(dy/dist)*move; this.x=this.subX; this.y=this.subY; } }
                     else if(cell.obstacleType==='spring'){ if((cell.springCD||0)<=0){ const dist2=2+(up.distance?up.distance*1:0); const backX=this.subX-(dx/dist)*dist2*CELL_SIZE, backY=this.subY-(dy/dist)*dist2*CELL_SIZE; this.subX=Math.max(0,Math.min(canvas.width-1,backX)); this.subY=Math.max(0,Math.min(canvas.height-1,backY)); this.x=this.subX; this.y=this.subY; spawnParticles(this.x,this.y,'#aaddff',10); cell.springCD=3; } }
-                    else if(cell.obstacleType==='confusion'){ const prob=up.effect?0.3+up.effect*0.05:0.3; if(Math.random()<prob){ this.subX-=(dx/dist)*move*3; this.subY-=(dy/dist)*move*3; this.x=this.subX; this.y=this.subY; } this.slowed=Math.max(this.slowed,2); }
+                    else if(cell.obstacleType==='confusion'){ const prob=up.effect?0.3+up.effect*0.05:0.3; if(Math.random()<prob){ this.subX-=(dx/dist)*move*3; this.subY-=(dy/dist)*move*3; this.x=this.subX; this.y=this.subY; } this.slowed=Math.max(this.slowed,2); this.slowAmount=Math.max(this.slowAmount||0,0.4); }
                 } }
                 // 通道建筑:直线移动敌人经过时炮塔受到伤害
                 if(gr>=0&&gr<ROWS&&gc>=0&&gc<COLS){ const tcell=grid[gr][gc]; if(tcell.type==='tower'&&tcell.towerHP>0){ tcell.towerHP-=this.damage*0.5; spawnParticles(gc*CELL_SIZE+12,gr*CELL_SIZE+12,'#ff6644',4); if(tcell.towerHP<=0){ tcell.type='empty'; tcell.towerType=null; tcell.towerHP=0; tcell.towerMaxHP=0; spawnParticles(gc*CELL_SIZE+12,gr*CELL_SIZE+12,'#ff2200',20); } } }
@@ -564,17 +564,17 @@
                     if(cell.obstacleType==='water'){
                         this.slowed=3; this.slowAmount=Math.min(0.7, (up.slow?0.25+up.slow*0.04:0.25)); this.wet=4;
                     } else if(cell.obstacleType==='lava'){
-                        this.burning=3; this.burnDPS=8+(up.burn?up.burn*2:0); this.slowed=2;
+                        this.burning=3; this.burnDPS=8+(up.burn?up.burn*2:0); this.slowed=Math.max(this.slowed,2); this.slowAmount=Math.max(this.slowAmount||0,0.3);
                     } else if(cell.obstacleType==='stone'){
-                        cell.obstacleHP-=this.damage*0.3; if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } else { this.pathIndex=Math.max(1, this.pathIndex-1); this.subX=pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY=pathOrder[this.pathIndex][0]*CELL_SIZE+12; this.x=this.subX; this.y=this.subY; }
+                        cell.obstacleHP-=this.damage*0.3; if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } else { this.pathIndex=Math.max(0, this.pathIndex-1); this.subX=pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY=pathOrder[this.pathIndex][0]*CELL_SIZE+12; this.x=this.subX; this.y=this.subY; }
                     } else if(cell.obstacleType==='cactus'){
                         cell.obstacleHP-=this.damage*0.2; this.takeDamage(3+(up.thorns?up.thorns*1.5:0),'physical');
-                        if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } else { this.pathIndex=Math.max(1, this.pathIndex-1); this.subX=pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY=pathOrder[this.pathIndex][0]*CELL_SIZE+12; this.x=this.subX; this.y=this.subY; }
+                        if(cell.obstacleHP<=0){ cell.type='path'; cell.obstacleType=null; } else { this.pathIndex=Math.max(0, this.pathIndex-1); this.subX=pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY=pathOrder[this.pathIndex][0]*CELL_SIZE+12; this.x=this.subX; this.y=this.subY; }
                     } else if(cell.obstacleType==='spring'){
                         // 修复:弹簧加CD,CD中怪物直接通过不后退
                         if((cell.springCD||0)<=0){
                             const dist=2+(up.distance?up.distance*1:0);
-                            this.pathIndex = Math.max(1, this.pathIndex - dist);
+                            this.pathIndex = Math.max(0, this.pathIndex - dist);
                             this.subX = pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY = pathOrder[this.pathIndex][0]*CELL_SIZE+12;
                             this.x=this.subX; this.y=this.subY;
                             spawnParticles(this.x,this.y,'#aaddff',10);
@@ -582,12 +582,12 @@
                         }
                     } else if(cell.obstacleType==='confusion'){
                         const prob = up.effect? 0.3+up.effect*0.05 : 0.3;
-                        if(Math.random()<prob){ this.pathIndex = Math.max(1, this.pathIndex - 2);
+                        if(Math.random()<prob){ this.pathIndex = Math.max(0, this.pathIndex - 2);
                             // 后退同步坐标
                             this.subX = pathOrder[this.pathIndex][1]*CELL_SIZE+12; this.subY = pathOrder[this.pathIndex][0]*CELL_SIZE+12;
                             this.x=this.subX; this.y=this.subY;
                         }
-                        this.slowed = Math.max(this.slowed, 2);
+                        this.slowed = Math.max(this.slowed, 2); this.slowAmount = Math.max(this.slowAmount||0, 0.4);
                     } else if(cell.obstacleType==='barracks'){
                         // 兵营可被破坏:敌人经过时扣血,HP归零被摧毁(变为路径)
                         cell.obstacleHP -= this.damage*0.3;
@@ -750,7 +750,7 @@
     function towerEffectiveDmg(type, atkLvl){ const t=TOWER_TYPES[type]; return t?Math.floor(t.dmg + t.dmgPerLvl*atkLvl):0; }
     function towerEffectiveCD(type, cdLvl){ const t=TOWER_TYPES[type]; return t?Math.max(0.005, t.cd - t.cdPerLvl*cdLvl):1; }
     function towerEffectiveRange(type, rangeLvl){ const t=TOWER_TYPES[type]; let r=t?(t.range + (t.rangePerLvl||0)*rangeLvl):3; if(weatherType==='fog'&&type!=='lamp') r*=0.7; return r; }
-    function towerDmg(type, cell){ let d=towerEffectiveDmg(type, cell.atkLvl||0); if(cell.atkDebuffTimer>0)d=Math.floor(d*0.7); return d; } function towerCD(type, cell){ return towerEffectiveCD(type, cell.cdLvl||0); } function towerRange(type, cell){ return towerEffectiveRange(type, cell.rangeLvl||0); }
+    function towerDmg(type, cell){ const t=TOWER_TYPES[type]; const lvl=t.fields?(cell.atkLvl||0):(cell.towerLevel||0); let d=towerEffectiveDmg(type, lvl); if(cell.atkDebuffTimer>0)d=Math.floor(d*0.7); return d; } function towerCD(type, cell){ const t=TOWER_TYPES[type]; const lvl=t.fields?(cell.cdLvl||0):(cell.towerLevel||0); return Math.max(0.005, towerEffectiveCD(type, lvl)*(cell.cdDebuffTimer>0?1.5:1)); } function towerRange(type, cell){ return towerEffectiveRange(type, cell.rangeLvl||0); }
     function isTowerUnlocked(type){ if(devMode||gameMode==='season')return true; const t=TOWER_TYPES[type]; if(!t||t.isOneShot||t.isWireNet||t.isMirror) return true; return TOWER_UNLOCK_WAVE[type] !== undefined ? TOWER_UNLOCK_WAVE[type] <= waveNumber : true; }
     function isObstacleUnlocked(type){ if(devMode||gameMode==='season')return true; const o=OBSTACLE_TYPES[type]; if(!o) return false; return o.unlockWave !== undefined ? o.unlockWave <= waveNumber : true; }
 
@@ -898,7 +898,7 @@
             case'potion': { const range=towerRange('potion',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ const r=Math.random(); if(r<0.25){ e.slowed=Math.max(e.slowed,4); e.slowAmount=Math.max(e.slowAmount,0.6); } else if(r<0.5){ e.poisoned=Math.max(e.poisoned,5); e.poisonDPS=Math.max(e.poisonDPS,8); e.poisonStacks=Math.min(5,(e.poisonStacks||0)+2); } else if(r<0.75){ e.burning=Math.max(e.burning,3); e.burnDPS=Math.max(e.burnDPS,10); } else{ e.frozen=Math.max(e.frozen,2); } e.takeDamage(dmg,'poison',row,col); hit=true; spawnParticles(e.x,e.y,'#cc44ff',4); } } if(hit){ spawnTowerEffect(tx,ty,'#cc44ff',6); // 药水飞溅特效:紫色扩散光环
                     projectiles.push({type:'potionSplash',x:tx,y:ty,r:range,life:0.5,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.4);const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.fill();ctx.restore();}}); for(let i=0;i<10;i++){const ang=Math.random()*Math.PI*2;particles.push({x:tx,y:ty,vx:Math.cos(ang)*80,vy:Math.sin(ang)*80,life:0.6,maxLife:0.6,color:['#cc44ff','#ff44aa','#44ddff'][Math.floor(Math.random()*3)],size:3+Math.random()*2});} } // 究极药水塔:概率发射到远处
                 if(isUltimateTower(cell)&&Math.random()<0.2){ const farTargets=enemies.filter(e=>canTargetEnemy(e)&&!e.reachedEnd&&Math.hypot(e.x-tx,e.y-ty)>range); if(farTargets.length>0){ const ft=farTargets[Math.floor(Math.random()*farTargets.length)]; const r2=Math.random(); if(r2<0.25){ ft.slowed=Math.max(ft.slowed,4); ft.slowAmount=Math.max(ft.slowAmount,0.6); } else if(r2<0.5){ ft.poisoned=Math.max(ft.poisoned,5); ft.poisonDPS=Math.max(ft.poisonDPS,8); } else if(r2<0.75){ ft.burning=Math.max(ft.burning,3); ft.burnDPS=Math.max(ft.burnDPS,10); } else{ ft.frozen=Math.max(ft.frozen,2); } ft.takeDamage(dmg*1.5,'poison',row,col); spawnParticles(ft.x,ft.y,'#cc44ff',8); projectiles.push({type:'potionSplash',x:ft.x,y:ft.y,r:range*0.5,life:0.5,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.4);const t=1-this.life/0.5;ctx.save();ctx.strokeStyle=`rgba(200,80,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(200,80,255,0.8)';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,80,255,${0.1*a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.fill();ctx.restore();}}); } } break; }
-            case'fan': { const dir=cell.towerDirection||[0,1]; const frange=8; const beamLen=frange*CELL_SIZE; let hasWater=false,hasIce=false; for(let step=1;step<=frange;step++){ const fr=row+dir[0]*step, fc=col+dir[1]*step; if(fr<0||fr>=ROWS||fc<0||fc>=COLS)break; const fc2=grid[fr][fc]; if(fc2.type==='obstacle'&&fc2.obstacleType==='water')hasWater=true; if(fc2.type==='tower'&&fc2.towerType==='ice')hasIce=true; } let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const dx=e.x-tx, dy=e.y-ty; const along=dx*dir[1]+dy*dir[0]; const perp=Math.abs(dx*dir[0]-dy*dir[1]); if(along>0&&along<beamLen&&perp<CELL_SIZE*0.7){ e.takeDamage(dmg,'physical',row,col); const d=Math.hypot(dx,dy)||1; const kb=CELL_SIZE*2; if(e.straightToBase){ e.subX=e.x-(dx/d)*kb; e.subY=e.y-(dy/d)*kb; e.x=e.subX; e.y=e.subY; } else { e.pathIndex=Math.max(1,e.pathIndex-2); if(e.pathIndex<pathOrder.length){ e.subX=pathOrder[e.pathIndex][1]*CELL_SIZE+12; e.subY=pathOrder[e.pathIndex][0]*CELL_SIZE+12; } e.x=e.subX; e.y=e.subY; } if(hasWater){ e.wet=Math.max(e.wet||0,3); e.slowed=Math.max(e.slowed||0,3); e.slowAmount=Math.max(e.slowAmount||0,0.4); } if(hasIce){ e.frozen=Math.max(e.frozen||0,2); } hit=true; } } if(hit){ spawnTowerEffect(tx,ty,'#88eeff',6); projectiles.push({type:'fanBeam',sx:tx,sy:ty,ex:tx+dir[1]*beamLen,ey:ty+dir[0]*beamLen,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(150,230,255,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.4;ctx.shadowColor='rgba(150,230,255,0.7)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } break; }
+            case'fan': { const dir=cell.towerDirection||[0,1]; const frange=8; const beamLen=frange*CELL_SIZE; let hasWater=false,hasIce=false; for(let step=1;step<=frange;step++){ const fr=row+dir[0]*step, fc=col+dir[1]*step; if(fr<0||fr>=ROWS||fc<0||fc>=COLS)break; const fc2=grid[fr][fc]; if(fc2.type==='obstacle'&&fc2.obstacleType==='water')hasWater=true; if(fc2.type==='tower'&&fc2.towerType==='ice')hasIce=true; } let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; const dx=e.x-tx, dy=e.y-ty; const along=dx*dir[1]+dy*dir[0]; const perp=Math.abs(dx*dir[0]-dy*dir[1]); if(along>0&&along<beamLen&&perp<CELL_SIZE*0.7){ e.takeDamage(dmg,'physical',row,col); const d=Math.hypot(dx,dy)||1; const kb=CELL_SIZE*2; if(e.straightToBase){ e.subX=e.x-(dx/d)*kb; e.subY=e.y-(dy/d)*kb; e.x=e.subX; e.y=e.subY; } else { e.pathIndex=Math.max(0,e.pathIndex-2); if(e.pathIndex<pathOrder.length){ e.subX=pathOrder[e.pathIndex][1]*CELL_SIZE+12; e.subY=pathOrder[e.pathIndex][0]*CELL_SIZE+12; } e.x=e.subX; e.y=e.subY; } if(hasWater){ e.wet=Math.max(e.wet||0,3); e.slowed=Math.max(e.slowed||0,3); e.slowAmount=Math.max(e.slowAmount||0,0.4); } if(hasIce){ e.frozen=Math.max(e.frozen||0,2); } hit=true; } } if(hit){ spawnTowerEffect(tx,ty,'#88eeff',6); projectiles.push({type:'fanBeam',sx:tx,sy:ty,ex:tx+dir[1]*beamLen,ey:ty+dir[0]*beamLen,life:0.25,alive:true,update(dt){this.life-=dt;if(this.life<=0)this.alive=false;},draw(ctx){const a=Math.min(1,this.life/0.2);ctx.save();ctx.strokeStyle=`rgba(150,230,255,${0.5*a})`;ctx.lineWidth=CELL_SIZE*0.4;ctx.shadowColor='rgba(150,230,255,0.7)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(this.sx,this.sy);ctx.lineTo(this.ex,this.ey);ctx.stroke();ctx.restore();}}); } break; }
             case'storm': { const range=towerRange('storm',cell)*CELL_SIZE; let hit=false; for(const e of enemies.slice()){ if(!canTargetEnemy(e))continue; if(Math.hypot(e.x-tx,e.y-ty)<range){ const dx=e.x-tx, dy=e.y-ty, dist=Math.hypot(dx,dy)||1;
                 // 修复:四面楚歌模式(straightToBase)敌人击退沿反方向后退,不走pathOrder
                 if(e.straightToBase){
@@ -908,7 +908,7 @@
                     e.x=e.subX; e.y=e.subY;
                 } else {
                     const knockbackSteps=1;
-                    e.pathIndex=Math.max(1,e.pathIndex-knockbackSteps);
+                    e.pathIndex=Math.max(0,e.pathIndex-knockbackSteps);
                     if(e.pathIndex<pathOrder.length){ e.subX=pathOrder[e.pathIndex][1]*CELL_SIZE+12; e.subY=pathOrder[e.pathIndex][0]*CELL_SIZE+12; }
                     e.x=e.subX; e.y=e.subY;
                 }
@@ -936,7 +936,7 @@
         return base;
     }
     function startNextWave(){ waveNumber++; waveActive=true; waveBreakTimer=0; const p=getWavePattern(waveNumber); waveSpawnQueue=[]; for(const g of p){ for(let i=0;i<g.count;i++)waveSpawnQueue.push({type:g.type,level:g.level,spawnDelay:i*g.interval}); } waveSpawnQueue.sort((a,b)=>a.spawnDelay-b.spawnDelay); waveSpawnTimer=0; if(!randomBoxMode){ for(const g of p){ if(!unlockedEnemyTypes.has(g.type)){ unlockedEnemyTypes.add(g.type); pendingEnemyIntro={type:g.type,level:g.level}; } } if(pendingEnemyIntro){ showEnemyIntro(pendingEnemyIntro.type,pendingEnemyIntro.level); introPause=true; } } updateUI(); }
-    function processWaveSpawning(dt){ if(!waveActive||introPause||bossSelectionPause)return; waveSpawnTimer+=dt; while(waveSpawnQueue.length&&waveSpawnQueue[0].spawnDelay<=waveSpawnTimer){ const s=waveSpawnQueue.shift(); const type=randomBoxMode?'_blindbox':s.type; enemies.push(new Enemy(type,s.level)); } if(waveSpawnQueue.length===0&&enemies.filter(e=>e.alive&&!e.reachedEnd).length===0&&waveActive)endWave(); }
+    function processWaveSpawning(dt){ if(!waveActive||introPause||bossSelectionPause)return; waveSpawnTimer+=dt; while(waveSpawnQueue.length&&waveSpawnQueue[0].spawnDelay<=waveSpawnTimer){ const s=waveSpawnQueue.shift(); const type=randomBoxMode?'_blindbox':s.type; enemies.push(new Enemy(type,s.level)); } if(waveSpawnQueue.length===0&&enemies.filter(e=>e.alive&&!e.reachedEnd&&e.typeKey!=='tombstone'&&e.typeKey!=='super_tombstone').length===0&&waveActive)endWave(); }
     function endWave(){ waveActive=false; waveBreakTimer=waveBreakDuration; let pts = Math.floor((waveNumber*20+30)*Math.max(0,1-globalPenalties.pointReduction*0.15)); clampPoints(pts); // 天气效果轮次递减(2轮后消失)
         if(weatherWavesLeft>0){ weatherWavesLeft--; if(weatherWavesLeft<=0) weatherType=null; }
         // 包租婆:每轮扣50金币,不够则扣血
@@ -975,7 +975,7 @@
                     baseIncomeTimer+=dt; if(baseIncomeTimer>=1){ baseIncomeTimer-=1; let income=baseUpgrades.goldGen*0.5; if(income>0)clampPoints(income); }
                     processWaveBreak(dt); if(waveActive)processWaveSpawning(dt); processTowers(dt); processObstacles(dt);
                     // 每25波单独出现一只boss
-                    if(randomBoxMode&&waveNumber>0&&waveNumber%25===0&&waveNumber!==randomBossLastWave){ randomBossLastWave=waveNumber; const bt=['boss','boss_jiawei','boss_bomber'][Math.floor(Math.random()*3)]; const e=new Enemy(bt, Math.max(5, waveNumber/2)); e.pathIndex=0; if(pathOrder.length>0){ e.x=pathOrder[0][1]*CELL_SIZE+12; e.y=pathOrder[0][0]*CELL_SIZE+12; e.subX=e.x; e.subY=e.y; } enemies.push(e); spawnParticles(20, e.x, e.y, '#ff00ff', 25); }
+                    if(randomBoxMode&&waveNumber>0&&waveNumber%25===0&&waveNumber!==randomBossLastWave){ randomBossLastWave=waveNumber; const bt=['boss','boss_jiawei','boss_bomber'][Math.floor(Math.random()*3)]; const e=new Enemy(bt, Math.max(5, waveNumber/2)); e.pathIndex=0; if(pathOrder.length>0){ e.x=pathOrder[0][1]*CELL_SIZE+12; e.y=pathOrder[0][0]*CELL_SIZE+12; e.subX=e.x; e.subY=e.y; } enemies.push(e); spawnParticles(e.x, e.y, '#ff00ff', 25); }
                     for(const e of enemies) if(e.alive||e.reachedEnd) e.update(dt); enemies=enemies.filter(e=>e.alive||(e.reachedEnd&&e.removeTimer>0));
                     for(const a of allies)a.update(dt); allies=allies.filter(a=>a.alive);
                     for(const p of projectiles)p.update(dt); projectiles=projectiles.filter(p=>p.alive);
@@ -1189,6 +1189,7 @@
     function showBossPenaltySelection(count=5){ if(gameMode==='season'&&seasonSubMode==='random')return; // 超级随机:无词条
         if(gameMode==='season'&&seasonSubMode==='experience')return; // 经验模式:无词条
         if(gameMode==='season'&&seasonSubMode==='fortress')return; // 坚不可摧:无词条
+        if(gameMode==='season'&&seasonSubMode==='besieged')return; // 四面楚歌:无词条
         bossSelectionPause=true;
         // 使用与AFFIX_POOL相同的词条列表;已消耗的"仅一次"词条不再出现
         const available=AFFIX_POOL.filter(a=>!isAffixConsumed(a));
@@ -1516,7 +1517,7 @@
     function updateSpeedButtons(){ ['btn-sp05','btn-sp1','btn-sp2','btn-sp5'].forEach((id,i)=>{ document.getElementById(id).classList.toggle('active-speed',gameSpeed===[0.5,1,2,5][i]); }); }
     function showEnemyIntro(typeKey,level){ const t=ENEMY_TYPES[typeKey]; if(!t)return; document.getElementById('modalContainer').innerHTML=`<div class="modal-overlay"><div class="modal"><h3>⚠️新敌人！</h3><div style="text-align:center;font-size:3em;">${t.emoji}</div><h4>${t.name} Lv${level}</h4><p>${t.desc}</p><p style="font-size:0.8em;color:#aaa;">❤️${t.hp} ⚡${t.damage} 🏃${t.speed} 🛡️${t.armor}</p><button onclick="document.getElementById('modalContainer').innerHTML='';introPause=false;pendingEnemyIntro=null;">确认</button></div></div>`; }
     function togglePause(){ gamePaused=!gamePaused; const btn=document.getElementById('btn-pause'); if(btn)btn.textContent=gamePaused?'▶继续':'⏸暂停'; }
-    function openEncyclopediaPaused(){ gamePaused=true; const btn=document.getElementById('btn-pause'); if(btn)btn.textContent='▶继续'; openEncyclopedia(); }
+    function openEncyclopediaPaused(){ if(introPause||bossSelectionPause){ alert('请先处理当前弹窗'); return; } gamePaused=true; const btn=document.getElementById('btn-pause'); if(btn)btn.textContent='▶继续'; openEncyclopedia(); }
     function openInstructions(){ let html=`<div class="modal-overlay"><div class="modal" style="max-width:700px;max-height:85vh;overflow-y:auto;"><h3>📋 说明书</h3>`;
         const _vs=document.getElementById('versionSelect'); if(_vs&&_vs.style.display==='none'&&(gamePhase==='defense'||gamePhase==='digging')){ alert('游戏过程中不能查看说明书，请先返回菜单或使用图鉴'); return; }
         html+=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">`;
@@ -2083,13 +2084,13 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
     function deleteSaveData(id){ localStorage.removeItem(SAVE_PREFIX+id); removeSaveId(id); renderSaveList(); }
     function saveGame(){ const saveId=Date.now().toString(36)+Math.random().toString(36).substring(2,6); const data={ gameState:{ gamePhase,baseHP,points,crystals,waveNumber,waveActive,waveBreakTimer,waveBreakDuration, grid:grid.map(r=>r.map(c=>({...c}))), waveSpawnQueue,waveSpawnTimer,achievementData,unlockedEnemyTypes:Array.from(unlockedEnemyTypes),bossBuffLevels,globalPenalties,baseUpgrades,baseTotems,nextWaveDouble,nanjingTreaty,landlordActive,woundInfection,repairPriorityTower,undeadBoss,gunpowderActive,callSupport,eastWindActive,doubleBoss,techLockedTypes:techLockedTypes?Array.from(techLockedTypes):null,weatherType,weatherWavesLeft }, timestamp:Date.now() }; setSaveData(saveId,data); renderSaveList(); alert('存档已保存'); }
     function loadGame(saveId){ const data=getSaveData(saveId); if(!data)return; const gs=data.gameState; gamePhase=gs.gamePhase; baseHP=gs.baseHP; points=Math.min(gs.points,MAX_POINTS); crystals=gs.crystals||0; waveNumber=gs.waveNumber; waveActive=gs.waveActive; waveBreakTimer=gs.waveBreakTimer; waveBreakDuration=gs.waveBreakDuration||20; waveSpawnQueue=gs.waveSpawnQueue||[]; waveSpawnTimer=gs.waveSpawnTimer||0; achievementData=gs.achievementData||{}; unlockedEnemyTypes=new Set(gs.unlockedEnemyTypes||[]); bossBuffLevels=gs.bossBuffLevels||{speed:0,health:0,armor:0}; globalPenalties=gs.globalPenalties||{damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades=gs.baseUpgrades||{toughness:0,goldGen:0}; baseTotems=gs.baseTotems||0; nextWaveDouble=gs.nextWaveDouble||false; nanjingTreaty=gs.nanjingTreaty||false; landlordActive=gs.landlordActive||false; woundInfection=gs.woundInfection||false; repairPriorityTower=gs.repairPriorityTower||false; undeadBoss=gs.undeadBoss||false; gunpowderActive=gs.gunpowderActive||false; callSupport=gs.callSupport||false; eastWindActive=gs.eastWindActive||false; doubleBoss=gs.doubleBoss||false; techLockedTypes=gs.techLockedTypes?new Set(gs.techLockedTypes):null; weatherType=gs.weatherType||null; weatherWavesLeft=gs.weatherWavesLeft||0; maxBaseHP=100+baseUpgrades.toughness*20; if(gs.grid)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)Object.assign(grid[r][c],gs.grid[r][c]); enemies=[]; allies=[]; projectiles=[]; particles=[]; bossEnemy=null; // 修复:重置暂停标志,避免卡死
-        introPause=false; bossSelectionPause=false; pendingEnemyIntro=null; if(gamePhase==='defense'){ if(!checkStartEndConnected()||!computePathOrder()){ alert('存档路径损坏'); resetGame(); return; } if(!waveActive&&waveBreakTimer<=0){ waveBreakTimer=5; } } updateUI(); renderSaveList(); alert('存档已读取'); }
+        introPause=false; bossSelectionPause=false; gamePaused=false; pendingEnemyIntro=null; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP){ btnP.style.display='inline-block'; btnP.textContent='⏸暂停'; } if(gamePhase==='defense'){ if(!checkStartEndConnected()||!computePathOrder()){ alert('存档路径损坏'); resetGame(); return; } if(!waveActive&&waveBreakTimer<=0){ waveBreakTimer=5; } } updateUI(); renderSaveList(); alert('存档已读取'); }
     function renderSaveList(){ const container=document.getElementById('saveListContainer'); const saves=getSaveIndex(); if(saves.length===0){ container.innerHTML='<div style="padding:8px;color:#888;">暂无存档</div>'; return; } container.innerHTML=saves.map(id=>{ const data=getSaveData(id); if(!data)return''; const time=new Date(data.timestamp).toLocaleString(); return `<div class="save-item"><div class="save-info"><span class="save-user">📁存档</span><span class="save-time">${time}</span></div><button onclick="loadGame('${id}')">读档</button><button onclick="deleteSaveData('${id}')">删除</button></div>`; }).join(''); }
     document.getElementById('dropdownToggle').addEventListener('click',()=>{ document.getElementById('dropdownMenu').classList.toggle('show'); renderSaveList(); });
     document.getElementById('btnCreateNewSave').addEventListener('click',saveGame);
     document.addEventListener('click',(e)=>{ if(!e.target.closest('#saveDropdown'))document.getElementById('dropdownMenu').classList.remove('show'); });
     // 修复:重置时清空所有暂停标志与开发者伤害记录
-    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; baseInvincible=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='inline-block'; updateUI(); }
+    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; baseInvincible=0; bossSelectionPause=false; introPause=false; gamePaused=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP){ btnP.style.display='inline-block'; btnP.textContent='⏸暂停'; } if(typeof setOperationMode==='function')setOperationMode('normal'); document.getElementById('modalContainer').innerHTML=''; window._pendingPenalties=null; updateUI(); }
     function triggerGameOver(){ if(gameMode==='season'&&seasonSubMode==='experience'){ baseHP=9999; return; } if(devMode){ baseHP=1; return; } if(baseTotems>0){ baseTotems--; baseHP=maxBaseHP; baseInvincible=10; alert('🗿不死图腾生效！基地满血+10秒无敌！'); updateUI(); return; } if(gameMode==='season'){ if(baseHP<=0){ alert(`💀基地被摧毁！(HP: ${Math.floor(baseHP)}/${maxBaseHP})\n坚持到了第${waveNumber}波`); } endSeasonMode(); return; } alert('💀基地已摧毁！游戏重新开始'); resetGame(); }
 
     // ===== 赛季模式系统 =====
@@ -2150,10 +2151,10 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             baseHP=9999; maxBaseHP=9999; points=500; crystals=100; waveNumber=1;
             generateRingPath(); gamePhase='defense'; waveActive=false; waveBreakTimer=0;
         } else if(seasonSubMode==='besieged'){
-            baseHP=200; maxBaseHP=200; points=300; crystals=50; waveNumber=1;
+            baseHP=200; maxBaseHP=200; points=300; crystals=50; waveNumber=0; seasonTimer=0;
             generateBesiegedPaths(); gamePhase='defense'; waveActive=false; waveBreakTimer=0; waveBreakDuration=10;
         } else if(seasonSubMode==='fortress'){
-            baseHP=300; maxBaseHP=300; points=3000; crystals=600; waveNumber=1;
+            baseHP=300; maxBaseHP=300; points=3000; crystals=600; waveNumber=0; seasonTimer=0;
             initGrid(); gamePhase='digging'; fortressPhase='digging'; waveActive=false; waveBreakTimer=0;
         } else if(seasonSubMode==='random'){
             baseHP=100; maxBaseHP=100; points=500; crystals=100; waveNumber=0; randomBoxMode=true;
@@ -2162,6 +2163,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         selectedCell=null; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='inline-block'; updateUI(); updateSeasonHUD(); }
     // 赛季模式出怪
     function processSeasonSpawning(dt){
+        if(bossSelectionPause||introPause||gamePaused)return;
         if(seasonSubMode==='experience'){
             seasonSpawnTimer+=dt; const spawnInterval=Math.max(0.3, 1.5-seasonDifficulty*0.05);
             if(seasonSpawnTimer>=spawnInterval){ seasonSpawnTimer=0; const count=1+Math.floor(seasonDifficulty*0.3)+Math.floor(Math.random()*2);
@@ -2197,6 +2199,16 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         } else if(seasonSubMode==='fortress'){
             // 坚不可摧:标准波次制
             if(fortressPhase==='defense'){
+                if(waveNumber>0 && waveNumber%10===0 && fortressPhase==='defense'){
+                    // 每10波回到布阵阶段
+                    fortressPhase='digging';
+                    waveActive=false;
+                    waveBreakTimer=0;
+                    points+=200;
+                    // 触发词条选择
+                    showAffixSelection();
+                    return;
+                }
                 if(!waveActive&&waveBreakTimer<=0){ waveNumber++; waveActive=true; seasonWaveTimer=0; seasonSpawnTimer=0; seasonWaveTime=0; seasonBossTimer=0; updateSeasonHUD(); }
                 if(waveActive){
                     seasonWaveTimer+=dt; seasonWaveTime+=dt;
