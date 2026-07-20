@@ -1690,21 +1690,22 @@ if(d.maxLvl)html+=`<div class="ency-entry" style="color:#f0c040;">⬆️ 最高�
 // 炮塔攻击效果小动画
 html+=`<div style="margin:10px 0;"><h4 style="color:#f0c040;">🎬 攻击效果演示</h4><canvas id="demoCanvas_${k}" width="280" height="140" style="background:#0a0a1a;border:1px solid #333;border-radius:6px;display:block;margin:0 auto;"></canvas><div style="text-align:center;margin-top:4px;"><button class="nav-btn" style="font-size:0.7em;" onclick="toggleDemoUltimate('${k}')">切换 究极/普通</button></div></div>`;
 html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; document.getElementById('modalContainer').innerHTML=html; setTimeout(()=>startTowerDemo(k),50); }
-    let _demoAnimations={}; // 存储所有活跃的演示动画
+    let _demoAnimRAF=null; // 当前活跃的动画requestAnimationFrame ID
     let _demoUltimateMode={}; // 记录每个炮塔是否显示究极形态
     window.toggleDemoUltimate=function(k){ _demoUltimateMode[k]=!_demoUltimateMode[k]; };
     function startTowerDemo(towerType){
         const canvas=document.getElementById('demoCanvas_'+towerType);
         if(!canvas)return;
+        if(_demoAnimRAF){ cancelAnimationFrame(_demoAnimRAF); _demoAnimRAF=null; }
         const ctx=canvas.getContext('2d');
         const W=canvas.width, H=canvas.height;
         const demoCellSize=20;
         const towerX=40, towerY=H/2;
         // 多个敌人展示范围攻击
         let enemies=[
-            {x:W-40, y:H/2-15, hp:50, maxHP:50, speed:1.0, burning:0, poisoned:0, frozen:0, slowed:0},
-            {x:W-70, y:H/2+10, hp:50, maxHP:50, speed:0.85, burning:0, poisoned:0, frozen:0, slowed:0},
-            {x:W-100, y:H/2-5, hp:50, maxHP:50, speed:0.95, burning:0, poisoned:0, frozen:0, slowed:0}
+            {x:W-40, y:H/2-15, hp:500, maxHP:500, speed:1.0, burning:0, poisoned:0, frozen:0, slowed:0},
+            {x:W-70, y:H/2+10, hp:500, maxHP:500, speed:0.85, burning:0, poisoned:0, frozen:0, slowed:0},
+            {x:W-100, y:H/2-5, hp:500, maxHP:500, speed:0.95, burning:0, poisoned:0, frozen:0, slowed:0}
         ];
         let attackCD=0;
         let projectiles=[];
@@ -1713,9 +1714,10 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
         let frameCount=0;
         const t=TOWER_TYPES[towerType];
         if(!t)return;
-        const baseDmg=t.dmg||10;
-        const baseCD=t.cd||1;
-        const baseRange=t.range===99?20:(t.range||3);
+        const ULT_LVL=15; // 16级=atkLvl 0-15
+        const baseDmg=Math.floor((t.dmg||10) + (t.dmgPerLvl||0)*ULT_LVL);
+        const baseCD=Math.max(0.005, (t.cd||1) - (t.cdPerLvl||0)*ULT_LVL);
+        const baseRange=t.range===99?20:((t.range||3) + (t.rangePerLvl||0)*ULT_LVL);
         const rangePx=Math.min(baseRange*demoCellSize, W*0.7);
         const isDirectional = (towerType==='fire'||towerType==='toxic'||towerType==='fan');
         
@@ -1801,7 +1803,7 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
             drawDemoTower(ctx, towerX, towerY, towerType, isUltimate, frameCount);
             for(const e of enemies){ let alpha=1; if(towerType==='lamp'){ const inLight=Math.hypot(e.x-towerX,e.y-towerY)<rangePx; alpha=inLight?1:0.25; } ctx.globalAlpha=alpha; drawDemoEnemy(ctx, e.x, e.y, e.hp, e.maxHP, e); ctx.globalAlpha=1; }
             if(isUltimate){ ctx.fillStyle='#f0c040'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('⭐究极', towerX, towerY-18); }
-            requestAnimationFrame(animate);
+            _demoAnimRAF=requestAnimationFrame(animate);
         }
         
         function performDemoAttack(type, isUlt, targets){
@@ -1957,8 +1959,8 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
                     break;
                 }
                 case 'iceBomb': {
-                    for(const e of enemies){ if(Math.hypot(e.x-towerX,e.y-towerY)<rangePx){ e.hp-=dmg; e.frozen=5; e.slowed=5; spawnDemoParticles(particles,e.x,e.y,'#88ccff',5); } }
-                    effects.push({life:0.7, x:towerX, y:towerY, r:rangePx, draw(ctx){const a=this.life/0.7;const t=1-this.life/0.7;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(150,220,255,0.9)';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.12*a})`;ctx.fill();ctx.restore();}});
+                    for(const e of enemies){ e.hp-=dmg; e.frozen=5; e.slowed=5; spawnDemoParticles(particles,e.x,e.y,'#88ccff',5); }
+                    effects.push({life:0.7, x:towerX, y:towerY, r:W, draw(ctx){const a=this.life/0.7;const t=1-this.life/0.7;ctx.save();ctx.strokeStyle=`rgba(150,220,255,${0.7*a})`;ctx.lineWidth=4;ctx.shadowColor='rgba(150,220,255,0.9)';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(this.x,this.y,this.r*t,0,Math.PI*2);ctx.stroke();ctx.fillStyle=`rgba(200,240,255,${0.12*a})`;ctx.fill();ctx.restore();}});
                     spawnDemoParticles(particles,towerX,towerY,'#88ccff',30);
                     attackCD=3;
                     break;
