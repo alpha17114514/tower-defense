@@ -1025,13 +1025,6 @@
             for(const p of projectiles)p.update(dt); projectiles=projectiles.filter(p=>p.alive);
             for(const p of particles){ p.life-=dt; if(p.life<=0)continue; p.x+=p.vx*dt; p.y+=p.vy*dt; } particles=particles.filter(p=>p.life>0);
         }
-        // 普通模式自动存档到localStorage
-        if(gameMode==='normal'&&gamePhase==='defense'&&waveNumber>0&&waveNumber%5===0){
-            if(!window._lastAutoSaveWave||window._lastAutoSaveWave!==waveNumber){
-                window._lastAutoSaveWave=waveNumber;
-                try{ localStorage.setItem('td_auto_save',JSON.stringify({grid:grid.map(row=>row.map(c=>({type:c.type,towerType:c.towerType,towerLevel:c.towerLevel,atkLvl:c.atkLvl,cdLvl:c.cdLvl,rangeLvl:c.rangeLvl,obstacleType:c.obstacleType,obstacleLevel:c.obstacleLevel,obstacleUpgrades:c.obstacleUpgrades,obstacleHP:c.obstacleHP,obstacleMaxHP:c.obstacleMaxHP,towerHP:c.towerHP,towerMaxHP:c.towerMaxHP,isPath:c.isPath,wasPath:c.wasPath,barracksUnitType:c.barracksUnitType,barracksCD:c.barracksCD,towerDirection:c.towerDirection}))),baseHP,maxBaseHP,points,crystals,waveNumber,baseUpgrades,baseTotems,bossBuffLevels,globalPenalties,timestamp:Date.now()})); }catch(e){}
-            }
-        }
         updateUI(); render();
         requestAnimationFrame(gameLoop);
     }
@@ -2090,26 +2083,19 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
     function deleteSaveData(id){ localStorage.removeItem(SAVE_PREFIX+id); removeSaveId(id); renderSaveList(); }
     function saveGame(){ const saveId=Date.now().toString(36)+Math.random().toString(36).substring(2,6); const data={ gameState:{ gamePhase,baseHP,points,crystals,waveNumber,waveActive,waveBreakTimer,waveBreakDuration, grid:grid.map(r=>r.map(c=>({...c}))), waveSpawnQueue,waveSpawnTimer,achievementData,unlockedEnemyTypes:Array.from(unlockedEnemyTypes),bossBuffLevels,globalPenalties,baseUpgrades,baseTotems,nextWaveDouble,nanjingTreaty,landlordActive,woundInfection,repairPriorityTower,undeadBoss,gunpowderActive,callSupport,eastWindActive,doubleBoss,techLockedTypes:techLockedTypes?Array.from(techLockedTypes):null,weatherType,weatherWavesLeft }, timestamp:Date.now() }; setSaveData(saveId,data); renderSaveList(); alert('存档已保存'); }
     function loadGame(saveId){ const data=getSaveData(saveId); if(!data)return; const gs=data.gameState; gamePhase=gs.gamePhase; baseHP=gs.baseHP; points=Math.min(gs.points,MAX_POINTS); crystals=gs.crystals||0; waveNumber=gs.waveNumber; waveActive=gs.waveActive; waveBreakTimer=gs.waveBreakTimer; waveBreakDuration=gs.waveBreakDuration||20; waveSpawnQueue=gs.waveSpawnQueue||[]; waveSpawnTimer=gs.waveSpawnTimer||0; achievementData=gs.achievementData||{}; unlockedEnemyTypes=new Set(gs.unlockedEnemyTypes||[]); bossBuffLevels=gs.bossBuffLevels||{speed:0,health:0,armor:0}; globalPenalties=gs.globalPenalties||{damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades=gs.baseUpgrades||{toughness:0,goldGen:0}; baseTotems=gs.baseTotems||0; nextWaveDouble=gs.nextWaveDouble||false; nanjingTreaty=gs.nanjingTreaty||false; landlordActive=gs.landlordActive||false; woundInfection=gs.woundInfection||false; repairPriorityTower=gs.repairPriorityTower||false; undeadBoss=gs.undeadBoss||false; gunpowderActive=gs.gunpowderActive||false; callSupport=gs.callSupport||false; eastWindActive=gs.eastWindActive||false; doubleBoss=gs.doubleBoss||false; techLockedTypes=gs.techLockedTypes?new Set(gs.techLockedTypes):null; weatherType=gs.weatherType||null; weatherWavesLeft=gs.weatherWavesLeft||0; maxBaseHP=100+baseUpgrades.toughness*20; if(gs.grid)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)Object.assign(grid[r][c],gs.grid[r][c]); enemies=[]; allies=[]; projectiles=[]; particles=[]; bossEnemy=null; // 修复:重置暂停标志,避免卡死
-        introPause=false; bossSelectionPause=false; pendingEnemyIntro=null; if(gamePhase==='defense'){ if(!checkStartEndConnected()||!computePathOrder()){ alert('存档路径损坏'); resetGame(); return; } } updateUI(); renderSaveList(); alert('存档已读取'); }
+        introPause=false; bossSelectionPause=false; pendingEnemyIntro=null; if(gamePhase==='defense'){ if(!checkStartEndConnected()||!computePathOrder()){ alert('存档路径损坏'); resetGame(); return; } if(!waveActive&&waveBreakTimer<=0){ waveBreakTimer=5; } } updateUI(); renderSaveList(); alert('存档已读取'); }
     function renderSaveList(){ const container=document.getElementById('saveListContainer'); const saves=getSaveIndex(); if(saves.length===0){ container.innerHTML='<div style="padding:8px;color:#888;">暂无存档</div>'; return; } container.innerHTML=saves.map(id=>{ const data=getSaveData(id); if(!data)return''; const time=new Date(data.timestamp).toLocaleString(); return `<div class="save-item"><div class="save-info"><span class="save-user">📁存档</span><span class="save-time">${time}</span></div><button onclick="loadGame('${id}')">读档</button><button onclick="deleteSaveData('${id}')">删除</button></div>`; }).join(''); }
     document.getElementById('dropdownToggle').addEventListener('click',()=>{ document.getElementById('dropdownMenu').classList.toggle('show'); renderSaveList(); });
     document.getElementById('btnCreateNewSave').addEventListener('click',saveGame);
     document.addEventListener('click',(e)=>{ if(!e.target.closest('#saveDropdown'))document.getElementById('dropdownMenu').classList.remove('show'); });
     // 修复:重置时清空所有暂停标志与开发者伤害记录
-    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; baseInvincible=0; window._lastAutoSaveWave=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='inline-block'; updateUI(); }
+    function resetGame(){ initGrid(); gamePhase='digging'; baseHP=100; maxBaseHP=100; points=20; crystals=0; waveNumber=0; waveActive=false; waveBreakTimer=0; waveBreakDuration=20; enemies=[]; allies=[]; projectiles=[]; particles=[]; selectedCell=null; bossEnemy=null; bossBuffLevels={speed:0,health:0,armor:0}; globalPenalties={damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; baseUpgrades={toughness:0,goldGen:0}; baseTotems=0; baseInvincible=0; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; fortressPhase='digging'; fortressWaveCounter=0; seasonWaveTimer=0; if(!devMode)devDamageLog=[]; const btnM=document.getElementById('btn-manual'); if(btnM)btnM.style.display='none'; const btnE=document.getElementById('btn-ency'); if(btnE)btnE.style.display='inline-block'; const btnP=document.getElementById('btn-pause'); if(btnP)btnP.style.display='inline-block'; updateUI(); }
     function triggerGameOver(){ if(gameMode==='season'&&seasonSubMode==='experience'){ baseHP=9999; return; } if(devMode){ baseHP=1; return; } if(baseTotems>0){ baseTotems--; baseHP=maxBaseHP; baseInvincible=10; alert('🗿不死图腾生效！基地满血+10秒无敌！'); updateUI(); return; } if(gameMode==='season'){ if(baseHP<=0){ alert(`💀基地被摧毁！(HP: ${Math.floor(baseHP)}/${maxBaseHP})\n坚持到了第${waveNumber}波`); } endSeasonMode(); return; } alert('💀基地已摧毁！游戏重新开始'); resetGame(); }
 
     // ===== 赛季模式系统 =====
     const SEASON_MODE_NAMES={experience:'经验模式',besieged:'四面楚歌',fortress:'坚不可摧',random:'超级随机'};
     const SEASON_LB_KEYS={experience:'td_lb_experience',besieged:'td_lb_besieged',fortress:'td_lb_fortress',random:'td_lb_random'};
-    // 普通模式自动存档:读取/应用localStorage
-    function loadAutoSave(){ try{ const s=localStorage.getItem('td_auto_save'); if(!s)return null; return JSON.parse(s); }catch(e){ return null; } }
-    function applyAutoSave(){ const s=loadAutoSave(); if(!s)return false; grid=s.grid.map(row=>row.map(c=>{ const cell={type:c.type||'empty',isPath:c.isPath,wasPath:c.wasPath}; Object.assign(cell,c); return cell; })); baseHP=s.baseHP; maxBaseHP=s.maxBaseHP||(100+(s.baseUpgrades?.toughness||0)*20); points=s.points; crystals=s.crystals; waveNumber=s.waveNumber; baseUpgrades=s.baseUpgrades||{toughness:0,goldGen:0}; baseTotems=s.baseTotems||0; bossBuffLevels=s.bossBuffLevels||{speed:0,health:0,armor:0}; globalPenalties=s.globalPenalties||{damageReduction:0,pointReduction:0,extraBossChance:0,typeResist:0,corruption:0}; gamePhase='defense'; waveActive=false; waveBreakTimer=5; waveBreakDuration=20; waveSpawnQueue=[]; waveSpawnTimer=0; baseInvincible=0; window._lastAutoSaveWave=s.waveNumber; enemies=[]; allies=[]; projectiles=[]; particles=[]; bossEnemy=null; bossSelectionPause=false; introPause=false; pendingEnemyIntro=null; nextWaveDouble=false; nanjingTreaty=false; landlordActive=false; woundInfection=false; repairPriorityTower=false; undeadBoss=false; gunpowderActive=false; callSupport=false; eastWindActive=false; doubleBoss=false; techLockedTypes=null; weatherType=null; weatherWavesLeft=0; computePathOrder(); updateUI(); return true; }
-    function startNormalMode(){ document.getElementById('versionSelect').style.display='none'; gameMode='normal'; document.getElementById('seasonHUD').style.display='none'; randomBoxMode=false; resetGame();
-        // 检查是否有自动存档,询问玩家是否恢复
-        const s=loadAutoSave();
-        if(s&&s.waveNumber>0){ if(confirm(`检测到普通模式自动存档(第${s.waveNumber}波, ${new Date(s.timestamp).toLocaleString()})\n是否恢复存档？`)){ applyAutoSave(); } }
-    }
+    function startNormalMode(){ document.getElementById('versionSelect').style.display='none'; gameMode='normal'; document.getElementById('seasonHUD').style.display='none'; randomBoxMode=false; resetGame(); }
     function showSeasonModes(){ document.getElementById('versionCards').style.display='none'; document.getElementById('seasonModeCards').style.display='flex'; }
     function startSeasonMode(subMode){ document.getElementById('versionSelect').style.display='none'; gameMode='season'; seasonSubMode=subMode; randomBoxMode=(subMode==='random'); document.getElementById('seasonHUD').style.display='flex'; initSeasonMode(); }
     // 环形赛道生成(经验模式)
@@ -2399,15 +2385,8 @@ html+=`<button onclick="openEncyclopedia()">返回</button></div></div>`; docume
     loadCurrentUser();
     // 首次打开显示最新公告
     if(!localStorage.getItem('td_announcement_seen')||localStorage.getItem('td_announcement_seen')!==ANNOUNCEMENTS[0].version){ localStorage.setItem('td_announcement_seen',ANNOUNCEMENTS[0].version); setTimeout(()=>showAnnouncements(),500); }
-    // 后台运行:Web Worker不被浏览器节流
-    try {
-        const _workerCode='setInterval(()=>postMessage(0),50);';
-        const _blob=new Blob([_workerCode],{type:'application/javascript'});
-        const _bgWorker=new Worker(URL.createObjectURL(_blob));
-        _bgWorker.onmessage=()=>{
-            if(document.hidden){ gameLoop(performance.now()); }
-        };
-    } catch(e){ console.log('Web Worker not supported:',e); }
+    // 后台运行:使用requestAnimationFrame(后台被节流但不会叠加)
+    // 注:删除Web Worker方案,因为会导致gameLoop多重调用叠加暴增
     initGrid(); requestAnimationFrame(gameLoop); updateSpeedButtons(); updateUI();
 </script>
 </body>
